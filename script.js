@@ -24,18 +24,20 @@ const DRAIN_SPEED = 0.095;
 const ATTRACTION_RADIUS = 220;
 const SNAP_RADIUS = 86;
 
-const BATTERY_YAW = THREE.MathUtils.degToRad(18);
+const BATTERY_YAW = 0;
 
+// The STL/GLB ring face lies in the XY plane, so X/Y stay at 0
+// to make the emblem face the viewer directly. Z only gives it a slight twist.
 const RING_IDLE_ROT = new THREE.Euler(
-  THREE.MathUtils.degToRad(22),
-  THREE.MathUtils.degToRad(-28),
-  THREE.MathUtils.degToRad(-28)
+  0,
+  0,
+  THREE.MathUtils.degToRad(-18)
 );
 
 const RING_SNAP_ROT = new THREE.Euler(
-  THREE.MathUtils.degToRad(8),
-  THREE.MathUtils.degToRad(82),
-  THREE.MathUtils.degToRad(18)
+  0,
+  0,
+  THREE.MathUtils.degToRad(-6)
 );
 
 let battery = null;
@@ -66,7 +68,7 @@ const camera = new THREE.PerspectiveCamera(
   100
 );
 
-camera.position.set(0, 0.55, 7.7);
+camera.position.set(0, 0, 7.9);
 
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
@@ -241,12 +243,10 @@ gltfLoader.load(
     batteryTargetScale = info.scale;
     batterySize.copy(info.size);
 
-    battery.position.set(0, -0.85, 0);
+    battery.position.set(0, 0, 0);
 
-    /* IMPORTANT:
-       No old -90deg STL rotation here.
-       The battery stays upright and only gets a slight yaw.
-    */
+    // The battery front lies in the XY plane.
+    // Keep it completely straight-on to the camera.
     battery.rotation.set(0, BATTERY_YAW, 0);
 
     scene.add(battery);
@@ -279,7 +279,7 @@ gltfLoader.load(
     ringTargetScale = info.scale;
 
     ring.rotation.copy(RING_IDLE_ROT);
-    ring.position.set(-1.9, 1.0, 2.2);
+    ring.position.set(-1.9, 0.75, 2.2);
 
     scene.add(ring);
 
@@ -409,10 +409,11 @@ function worldToScreen(position) {
 function getChargeSocketWorld() {
   if (!battery) return new THREE.Vector3();
 
+  // Front-right charging contact, measured in the battery's local XY face.
   const socket = new THREE.Vector3(
-    batterySize.x * 0.19,
-    batterySize.y * 0.01,
-    batterySize.z * 0.22
+    batterySize.x * 0.22,
+    0,
+    batterySize.z * 0.52
   );
 
   return battery.localToWorld(socket);
@@ -810,7 +811,7 @@ function animate() {
 
   if (battery && !completed) {
     battery.position.y =
-      -0.85 + Math.sin(time * 0.9) * 0.012;
+      Math.sin(time * 0.9) * 0.012;
   }
 
   renderer.render(scene, camera);
