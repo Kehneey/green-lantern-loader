@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Green Lantern Loader Test</title>
+  <meta name="description" content="Interactive Green Lantern-inspired charging loader using Three.js and STL models." />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <main class="loader" id="loader">
+    <div class="background"></div>
+    <div class="ambient" id="ambient"></div>
+    <div class="floor-glow" id="floorGlow"></div>
+    <div class="dust" id="dust"></div>
+
+    <div class="three-stage" id="threeStage"></div>
+
+    <svg class="beam-layer" aria-hidden="true">
+      <defs>
+        <linearGradient id="beamGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#effff4" />
+          <stop offset="30%" stop-color="#8cffac" />
+          <stop offset="70%" stop-color="#29ff78" />
+          <stop offset="100%" stop-color="#00e85b" />
+        </linearGradient>
+        <filter id="beamGlow" x="-100%" y="-100%" width="300%" height="300%">
+          <feGaussianBlur stdDeviation="7" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <line id="beamBlur" class="beam beam-blur" x1="0" y1="0" x2="0" y2="0" />
+      <line id="beam" class="beam beam-core" x1="0" y1="0" x2="0" y2="0" />
+    </svg>
+
+    <div class="particles" id="particles"></div>
+
+    <section class="oath" aria-live="polite">
+      <p class="oath-line">In blackest night, no evil shall escape my sight!</p>
+      <p class="oath-line">Let those who worship evil's might,</p>
+      <p class="oath-line final-oath-line">beware my power—<strong>Green Lantern's light!</strong></p>
+    </section>
+
+    <div class="instruction" id="instruction">Bring the ring to the battery</div>
+
+    <div class="charge-ui">
+      <span>CHARGE</span>
+      <strong id="progressText">0%</strong>
+    </div>
+
+    <div class="model-status" id="modelStatus">Loading 3D models…</div>
+
+    <div class="flash" id="flash"></div>
+
+    <section class="reveal" id="reveal">
+      <div class="reveal-inner">
+        <span>POWER BATTERY</span>
+        <h1>CHARGED.</h1>
+        <p>Green Lantern's light.</p>
+        <button id="restart" type="button">Recharge</button>
+      </div>
+    </section>
+  </main>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="./script.js"></script>
+</body>
+</html>
