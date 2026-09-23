@@ -81,31 +81,103 @@ button { font: inherit; }
 .oath {
   position: absolute;
   left: 50%;
-  top: 9%;
+  top: 5.5%;
   z-index: 25;
-  width: min(900px, 90vw);
+  width: min(1040px, 94vw);
   transform: translateX(-50%);
   text-align: center;
   pointer-events: none;
+  perspective: 900px;
 }
+
 .oath-line {
-  margin: 4px 0;
-  color: rgba(232,255,239,.96);
-  font-size: clamp(18px, 1.75vw, 29px);
-  font-weight: 500;
-  line-height: 1.3;
-  letter-spacing: -.035em;
+  margin: 0;
   opacity: 0;
-  transform: translateY(14px) scale(.985);
-  filter: blur(9px);
-  text-shadow: 0 0 15px rgba(0,255,102,.15), 0 0 45px rgba(0,255,102,.08);
-  transition: opacity .5s ease, transform .5s ease, filter .5s ease;
+  transform: translateY(22px) scale(.97);
+  filter: blur(12px);
+  transition:
+    opacity .6s cubic-bezier(.2,.75,.2,1),
+    transform .7s cubic-bezier(.2,.75,.2,1),
+    filter .6s ease;
 }
-.oath-line.visible { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-.final-oath-line strong {
-  color: #8dffaf;
+
+.oath-line + .oath-line {
+  margin-top: 10px;
+}
+
+.oath-line span,
+.oath-line strong {
+  display: block;
+}
+
+.oath-line span {
+  color: rgba(202,255,219,.56);
+  font-size: clamp(10px, .8vw, 13px);
   font-weight: 600;
-  text-shadow: 0 0 8px rgba(220,255,229,.8), 0 0 20px rgba(0,255,102,.75), 0 0 55px rgba(0,255,102,.38);
+  letter-spacing: .42em;
+  text-transform: uppercase;
+}
+
+.oath-line strong {
+  margin-top: 3px;
+  color: #ecfff3;
+  font-size: clamp(24px, 2.8vw, 46px);
+  font-weight: 700;
+  line-height: .98;
+  letter-spacing: -.045em;
+  text-transform: uppercase;
+  text-shadow:
+    0 0 8px rgba(224,255,235,.3),
+    0 0 22px rgba(0,255,102,.28),
+    0 0 60px rgba(0,255,102,.12);
+}
+
+.oath-line.visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+
+.oath-line.visible strong {
+  animation: oathPulse 1.6s ease-out both;
+}
+
+.oath-line-two strong {
+  color: #a8ffc4;
+}
+
+.final-oath-line {
+  margin-top: 14px;
+}
+
+.final-oath-line span {
+  color: rgba(189,255,210,.74);
+}
+
+.final-oath-line strong {
+  margin-top: 5px;
+  color: #9dffbb;
+  font-size: clamp(30px, 3.7vw, 62px);
+  font-weight: 700;
+  letter-spacing: -.055em;
+  text-shadow:
+    0 0 7px rgba(245,255,248,.85),
+    0 0 18px rgba(99,255,147,.95),
+    0 0 48px rgba(0,255,102,.62),
+    0 0 100px rgba(0,255,102,.28);
+}
+
+@keyframes oathPulse {
+  0% {
+    transform: scale(.97);
+    text-shadow: 0 0 0 rgba(0,255,102,0);
+  }
+  45% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .beam-layer {
@@ -117,8 +189,16 @@ button { font: inherit; }
   pointer-events: none;
 }
 .beam { opacity: 0; transition: opacity .1s ease; stroke-linecap: round; }
-.beam-core { stroke: url(#beamGradient); stroke-width: 2.5; filter: url(#beamGlow); }
-.beam-blur { stroke: rgba(0,255,102,.3); stroke-width: 18; filter: blur(9px); }
+.beam-core {
+  stroke: url(#beamGradient);
+  stroke-width: 2.8;
+  filter: url(#beamGlow);
+}
+.beam-blur {
+  stroke: rgba(67,255,126,.42);
+  stroke-width: 17;
+  filter: blur(8px);
+}
 .beam.visible { opacity: 1; }
 
 .particles, .dust { position: absolute; inset: 0; pointer-events: none; }
@@ -259,16 +339,10 @@ button { font: inherit; }
 .reveal button:hover { color: #00210d; background: #28ff75; transform: translateY(-2px); }
 
 @media (max-width: 700px) {
-  .oath { top: 7%; }
-  .oath-line { font-size: 17px; }
+  .oath { top: 4.5%; }
+  .oath-line strong { font-size: clamp(20px, 6vw, 30px); }
+  .final-oath-line strong { font-size: clamp(26px, 8vw, 38px); }
   .charge-ui { right: 20px; bottom: 20px; }
   .instruction { width: 100%; padding: 0 20px; white-space: normal; }
   .model-status { left: 20px; bottom: 20px; }
-}
-.beam-core {
-  stroke-width: 3.5;
-}
-
-.beam-blur {
-  stroke-width: 24;
 }
