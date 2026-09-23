@@ -22,21 +22,17 @@ const RING_MODEL = "./assets/green-lantern-ring.glb";
 const CHARGE_SPEED = 0.38;
 const DRAIN_SPEED = 0.095;
 const ATTRACTION_RADIUS = 220;
-const SNAP_RADIUS = 86;
+const SNAP_RADIUS = 88;
 
-const BATTERY_YAW = 0;
-
-// The STL/GLB ring face lies in the XY plane, so X/Y stay at 0
-// to make the emblem face the viewer directly. Z only gives it a slight twist.
+const BATTERY_ROTATION = new THREE.Euler(0, Math.PI, 0);
 const RING_IDLE_ROT = new THREE.Euler(
   0,
-  0,
+  Math.PI,
   THREE.MathUtils.degToRad(-18)
 );
-
 const RING_SNAP_ROT = new THREE.Euler(
   0,
-  0,
+  Math.PI,
   THREE.MathUtils.degToRad(-6)
 );
 
@@ -45,7 +41,6 @@ let ring = null;
 let batteryGlow = null;
 let ringGlow = null;
 let batterySize = new THREE.Vector3(1, 1, 1);
-let batteryTargetScale = 1;
 let ringTargetScale = 1;
 let loadedModels = 0;
 
@@ -67,82 +62,48 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   100
 );
-
-camera.position.set(0, 0, 7.9);
+camera.position.set(0, 0.05, 7.6);
 
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
   alpha: true
 });
-
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setClearColor(0x000000, 0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.65;
-
+renderer.toneMappingExposure = 1.9;
 stage.appendChild(renderer.domElement);
-
 
 /* ===================================== */
 /* LIGHTING                              */
 /* ===================================== */
 
-const hemi = new THREE.HemisphereLight(
-  0xd8ffe7,
-  0x04150c,
-  3.4
-);
+scene.add(new THREE.AmbientLight(0x8cffb2, 2.1));
+scene.add(new THREE.HemisphereLight(0xe7fff0, 0x042114, 4.4));
 
-scene.add(hemi);
-
-const keyLight = new THREE.DirectionalLight(
-  0xffffff,
-  6.2
-);
-
-keyLight.position.set(4.5, 6.5, 7);
+const keyLight = new THREE.DirectionalLight(0xffffff, 8.4);
+keyLight.position.set(4.5, 6.8, 7.2);
 scene.add(keyLight);
 
-const fillLight = new THREE.DirectionalLight(
-  0xa8ffc5,
-  3.1
-);
-
-fillLight.position.set(-4, 2.5, 5.5);
+const fillLight = new THREE.DirectionalLight(0xbaffd2, 4.8);
+fillLight.position.set(-4.5, 2.4, 5.8);
 scene.add(fillLight);
 
-const rimLight = new THREE.DirectionalLight(
-  0x32ff7f,
-  4.6
-);
-
-rimLight.position.set(-3.5, 3.8, -3.5);
+const rimLight = new THREE.DirectionalLight(0x38ff85, 5.6);
+rimLight.position.set(-2.5, 4.2, -3.5);
 scene.add(rimLight);
 
-const frontLight = new THREE.PointLight(
-  0xe6fff0,
-  2.4,
-  30,
-  2
-);
-
-frontLight.position.set(0, 1.5, 6.5);
+const frontLight = new THREE.PointLight(0xeafff2, 5.5, 32, 2);
+frontLight.position.set(0, 1.1, 6.8);
 scene.add(frontLight);
 
-const energyLight = new THREE.PointLight(
-  0x00ff66,
-  0,
-  10,
-  2
-);
-
-energyLight.position.set(0, 0.1, 1.1);
+const energyLight = new THREE.PointLight(0x28ff75, 1.1, 12, 2);
+energyLight.position.set(0, 0.12, 1.4);
 scene.add(energyLight);
 
 const gltfLoader = new GLTFLoader();
-
 
 /* ===================================== */
 /* HELPERS                               */
@@ -155,7 +116,6 @@ function normalizeObject(object, targetSize, mode = "height") {
 
   const center = new THREE.Vector3();
   box.getCenter(center);
-
   object.position.sub(center);
 
   const source =
@@ -166,11 +126,9 @@ function normalizeObject(object, targetSize, mode = "height") {
   const scale = targetSize / source;
   object.scale.setScalar(scale);
 
-  const scaledSize = size.clone().multiplyScalar(scale);
-
   return {
     scale,
-    size: scaledSize
+    size: size.clone().multiplyScalar(scale)
   };
 }
 
@@ -179,13 +137,13 @@ function prepareModelMaterials(object, isRing = false) {
     if (!child.isMesh) return;
 
     child.material = new THREE.MeshPhysicalMaterial({
-      color: isRing ? 0x1eb454 : 0x3d4a42,
-      metalness: isRing ? 0.95 : 0.66,
-      roughness: isRing ? 0.16 : 0.3,
-      clearcoat: isRing ? 0.9 : 0.3,
-      clearcoatRoughness: 0.18,
-      emissive: isRing ? 0x0a4f24 : 0x062b15,
-      emissiveIntensity: isRing ? 0.65 : 0.42
+      color: isRing ? 0x20d663 : 0x4f6056,
+      metalness: isRing ? 0.98 : 0.78,
+      roughness: isRing ? 0.14 : 0.26,
+      clearcoat: 1,
+      clearcoatRoughness: 0.14,
+      emissive: isRing ? 0x0f6e32 : 0x0b4822,
+      emissiveIntensity: isRing ? 0.95 : 0.75
     });
 
     child.castShadow = true;
@@ -207,21 +165,27 @@ function setEmissiveIntensity(object, value) {
   });
 }
 
+function setStatus(text, state = "") {
+  if (!modelStatus) return;
+
+  modelStatus.textContent = text;
+  modelStatus.classList.remove("ready", "error");
+
+  if (state) modelStatus.classList.add(state);
+}
+
 function markLoaded() {
   loadedModels += 1;
 
   if (loadedModels === 2) {
-    modelStatus.textContent = "Models ready";
-    modelStatus.classList.add("ready");
+    setStatus("Models ready", "ready");
   }
 }
 
 function markError(label, error) {
   console.error(`${label} failed to load`, error);
-  modelStatus.textContent = `${label} failed to load`;
-  modelStatus.classList.add("error");
+  setStatus(`${label} failed to load`, "error");
 }
-
 
 /* ===================================== */
 /* LOAD BATTERY                          */
@@ -234,20 +198,11 @@ gltfLoader.load(
 
     prepareModelMaterials(battery, false);
 
-    const info = normalizeObject(
-      battery,
-      3.7,
-      "height"
-    );
-
-    batteryTargetScale = info.scale;
+    const info = normalizeObject(battery, 3.75, "height");
     batterySize.copy(info.size);
 
-    battery.position.set(0, 0, 0);
-
-    // The battery front lies in the XY plane.
-    // Keep it completely straight-on to the camera.
-    battery.rotation.set(0, BATTERY_YAW, 0);
+    battery.position.set(0, -0.1, 0);
+    battery.rotation.copy(BATTERY_ROTATION);
 
     scene.add(battery);
 
@@ -257,7 +212,6 @@ gltfLoader.load(
   undefined,
   error => markError("Battery", error)
 );
-
 
 /* ===================================== */
 /* LOAD RING                             */
@@ -270,16 +224,11 @@ gltfLoader.load(
 
     prepareModelMaterials(ring, true);
 
-    const info = normalizeObject(
-      ring,
-      0.72,
-      "largest"
-    );
-
+    const info = normalizeObject(ring, 0.82, "largest");
     ringTargetScale = info.scale;
 
+    ring.position.set(-2.05, 0.8, 2.15);
     ring.rotation.copy(RING_IDLE_ROT);
-    ring.position.set(-1.9, 0.75, 2.2);
 
     scene.add(ring);
 
@@ -290,50 +239,40 @@ gltfLoader.load(
   error => markError("Ring", error)
 );
 
-
 /* ===================================== */
 /* GLOWS                                 */
 /* ===================================== */
 
 function createBatteryGlow() {
-  const geometry = new THREE.SphereGeometry(0.75, 32, 32);
+  const geometry = new THREE.SphereGeometry(0.92, 32, 32);
 
   const material = new THREE.MeshBasicMaterial({
-    color: 0x3dff86,
-    transparent: true,
-    opacity: 0.06,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending
-  });
-
-  batteryGlow = new THREE.Mesh(
-    geometry,
-    material
-  );
-
-  batteryGlow.position.set(0, 0.08, 0.28);
-  battery.add(batteryGlow);
-}
-
-function createRingGlow() {
-  const geometry = new THREE.SphereGeometry(0.42, 24, 24);
-
-  const material = new THREE.MeshBasicMaterial({
-    color: 0x3dff86,
+    color: 0x38ff85,
     transparent: true,
     opacity: 0.16,
     depthWrite: false,
     blending: THREE.AdditiveBlending
   });
 
-  ringGlow = new THREE.Mesh(
-    geometry,
-    material
-  );
-
-  ring.add(ringGlow);
+  batteryGlow = new THREE.Mesh(geometry, material);
+  batteryGlow.position.set(0, 0.05, 0.42);
+  battery.add(batteryGlow);
 }
 
+function createRingGlow() {
+  const geometry = new THREE.SphereGeometry(0.46, 24, 24);
+
+  const material = new THREE.MeshBasicMaterial({
+    color: 0x38ff85,
+    transparent: true,
+    opacity: 0.24,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+
+  ringGlow = new THREE.Mesh(geometry, material);
+  ring.add(ringGlow);
+}
 
 /* ===================================== */
 /* POINTER EVENTS                        */
@@ -365,12 +304,11 @@ window.addEventListener("mouseleave", () => {
   isHolding = false;
 });
 
-
 /* ===================================== */
-/* SCREEN/WORLD CONVERSIONS              */
+/* SCREEN / WORLD                        */
 /* ===================================== */
 
-function screenToWorld(x, y, zPlane = 2.15) {
+function screenToWorld(x, y, zPlane = 2.2) {
   const ndc = new THREE.Vector3(
     (x / window.innerWidth) * 2 - 1,
     -(y / window.innerHeight) * 2 + 1,
@@ -379,13 +317,8 @@ function screenToWorld(x, y, zPlane = 2.15) {
 
   ndc.unproject(camera);
 
-  const direction = ndc
-    .sub(camera.position)
-    .normalize();
-
-  const distance =
-    (zPlane - camera.position.z) /
-    direction.z;
+  const direction = ndc.sub(camera.position).normalize();
+  const distance = (zPlane - camera.position.z) / direction.z;
 
   return camera.position
     .clone()
@@ -401,24 +334,21 @@ function worldToScreen(position) {
   };
 }
 
-
 /* ===================================== */
-/* SNAP / SOCKET                         */
+/* SOCKET                                */
 /* ===================================== */
 
 function getChargeSocketWorld() {
   if (!battery) return new THREE.Vector3();
 
-  // Front-right charging contact, measured in the battery's local XY face.
   const socket = new THREE.Vector3(
-    batterySize.x * 0.22,
+    -batterySize.x * 0.2,
     0,
-    batterySize.z * 0.52
+    batterySize.z * 0.5
   );
 
   return battery.localToWorld(socket);
 }
-
 
 /* ===================================== */
 /* RING MOVEMENT                         */
@@ -451,9 +381,7 @@ function updateRing(time) {
     attraction *
     (3 - 2 * attraction);
 
-  if (isSnapped) {
-    attraction = 0.98;
-  }
+  if (isSnapped) attraction = 0.98;
 
   const visualX = THREE.MathUtils.lerp(
     smoothX,
@@ -467,62 +395,35 @@ function updateRing(time) {
     attraction
   );
 
-  let targetWorld = screenToWorld(
-    visualX,
-    visualY,
-    2.15
-  );
+  let targetWorld = screenToWorld(visualX, visualY, 2.2);
 
   if (isSnapped) {
     targetWorld = socketWorld
       .clone()
-      .add(new THREE.Vector3(0.0, 0.02, 0.16));
+      .add(new THREE.Vector3(0.02, 0.01, 0.16));
   }
 
-  ring.position.lerp(
-    targetWorld,
-    isSnapped ? 0.22 : 0.24
+  ring.position.lerp(targetWorld, isSnapped ? 0.22 : 0.24);
+
+  const targetRotation = isNearBattery ? RING_SNAP_ROT : RING_IDLE_ROT;
+
+  ring.rotation.x = THREE.MathUtils.lerp(
+    ring.rotation.x,
+    targetRotation.x,
+    0.08
   );
 
-  if (isNearBattery) {
-    ring.rotation.x = THREE.MathUtils.lerp(
-      ring.rotation.x,
-      RING_SNAP_ROT.x,
-      0.1
-    );
+  ring.rotation.y = THREE.MathUtils.lerp(
+    ring.rotation.y,
+    targetRotation.y,
+    0.08
+  );
 
-    ring.rotation.y = THREE.MathUtils.lerp(
-      ring.rotation.y,
-      RING_SNAP_ROT.y,
-      0.1
-    );
-
-    ring.rotation.z = THREE.MathUtils.lerp(
-      ring.rotation.z,
-      RING_SNAP_ROT.z,
-      0.1
-    );
-  } else {
-    const wobble = Math.sin(time * 2.4) * 0.08;
-
-    ring.rotation.x = THREE.MathUtils.lerp(
-      ring.rotation.x,
-      RING_IDLE_ROT.x + wobble * 0.25,
-      0.08
-    );
-
-    ring.rotation.y = THREE.MathUtils.lerp(
-      ring.rotation.y,
-      RING_IDLE_ROT.y + wobble * 0.6,
-      0.08
-    );
-
-    ring.rotation.z = THREE.MathUtils.lerp(
-      ring.rotation.z,
-      RING_IDLE_ROT.z,
-      0.08
-    );
-  }
+  ring.rotation.z = THREE.MathUtils.lerp(
+    ring.rotation.z,
+    targetRotation.z + (!isNearBattery ? Math.sin(time * 2.4) * 0.03 : 0),
+    0.08
+  );
 
   const pulse = isSnapped
     ? 1 + Math.sin(time * 8) * 0.025
@@ -538,7 +439,6 @@ function updateRing(time) {
         : "Bring the ring to the battery";
   }
 }
-
 
 /* ===================================== */
 /* BEAM                                  */
@@ -562,7 +462,6 @@ function updateBeam() {
   beam.classList.toggle("visible", visible);
   beamBlur.classList.toggle("visible", visible);
 }
-
 
 /* ===================================== */
 /* CHARGE                                */
@@ -595,54 +494,43 @@ function updateCharge() {
 function updateChargeVisuals() {
   const intensity = charge / 100;
 
-  energyLight.intensity = intensity * 12;
-  energyLight.distance = 6 + intensity * 8;
+  energyLight.intensity = 1.1 + intensity * 12;
+  energyLight.distance = 12 + intensity * 10;
 
   if (batteryGlow) {
-    batteryGlow.material.opacity = 0.06 + intensity * 0.58;
-    batteryGlow.scale.setScalar(1 + intensity * 2.4);
+    batteryGlow.material.opacity = 0.16 + intensity * 0.52;
+    batteryGlow.scale.setScalar(1.2 + intensity * 2.6);
   }
 
   if (ringGlow) {
-    ringGlow.material.opacity = 0.16 + intensity * 0.52;
-    ringGlow.scale.setScalar(1 + intensity * 0.9);
+    ringGlow.material.opacity = 0.24 + intensity * 0.48;
+    ringGlow.scale.setScalar(1.1 + intensity * 0.95);
   }
 
-  setEmissiveIntensity(
-    battery,
-    0.42 + intensity * 1.55
-  );
+  setEmissiveIntensity(battery, 0.75 + intensity * 1.8);
+  setEmissiveIntensity(ring, 0.95 + intensity * 2.1);
 
-  setEmissiveIntensity(
-    ring,
-    0.65 + intensity * 1.85
-  );
+  ambient.style.opacity = `${0.22 + intensity * 0.72}`;
+  ambient.style.transform = `scale(${1 + intensity * 0.22})`;
 
-  ambient.style.opacity = `${0.16 + intensity * 0.77}`;
-  ambient.style.transform = `scale(${1 + intensity * 0.2})`;
-
-  floorGlow.style.opacity = `${0.16 + intensity * 0.72}`;
-  floorGlow.style.width = `${430 + intensity * 320}px`;
+  floorGlow.style.opacity = `${0.22 + intensity * 0.72}`;
+  floorGlow.style.width = `${470 + intensity * 320}px`;
 
   if (battery && isHolding) {
     battery.rotation.z =
       (Math.random() - 0.5) *
       intensity *
-      0.006;
+      0.005;
   } else if (battery) {
-    battery.rotation.z *= 0.82;
+    battery.rotation.z *= 0.8;
   }
 
   const thresholds = [17, 45, 71];
 
   oathLines.forEach((line, index) => {
-    line.classList.toggle(
-      "visible",
-      charge >= thresholds[index]
-    );
+    line.classList.toggle("visible", charge >= thresholds[index]);
   });
 }
-
 
 /* ===================================== */
 /* PARTICLES                             */
@@ -704,7 +592,6 @@ function createDust() {
 
 createDust();
 
-
 /* ===================================== */
 /* COMPLETE                              */
 /* ===================================== */
@@ -724,27 +611,21 @@ function finishCharge() {
   energyLight.intensity = 20;
 
   if (batteryGlow) {
-    batteryGlow.material.opacity = 0.88;
-    batteryGlow.scale.setScalar(4.2);
+    batteryGlow.material.opacity = 0.92;
+    batteryGlow.scale.setScalar(4.4);
   }
 
   if (ringGlow) {
-    ringGlow.material.opacity = 0.92;
+    ringGlow.material.opacity = 0.95;
     ringGlow.scale.setScalar(2.2);
   }
 
-  setEmissiveIntensity(battery, 2.25);
-  setEmissiveIntensity(ring, 2.5);
+  setEmissiveIntensity(battery, 2.8);
+  setEmissiveIntensity(ring, 3.1);
 
-  setTimeout(() => {
-    flash.classList.add("fire");
-  }, 280);
-
-  setTimeout(() => {
-    reveal.classList.add("visible");
-  }, 980);
+  setTimeout(() => flash.classList.add("fire"), 280);
+  setTimeout(() => reveal.classList.add("visible"), 980);
 }
-
 
 /* ===================================== */
 /* RESET                                 */
@@ -760,28 +641,25 @@ restart.addEventListener("click", () => {
   beam.classList.remove("visible");
   beamBlur.classList.remove("visible");
 
-  oathLines.forEach(line =>
-    line.classList.remove("visible")
-  );
+  oathLines.forEach(line => line.classList.remove("visible"));
 
   instruction.textContent = "Bring the ring to the battery";
 
-  energyLight.intensity = 0;
+  energyLight.intensity = 1.1;
 
   if (batteryGlow) {
-    batteryGlow.material.opacity = 0.06;
-    batteryGlow.scale.setScalar(1);
+    batteryGlow.material.opacity = 0.16;
+    batteryGlow.scale.setScalar(1.2);
   }
 
   if (ringGlow) {
-    ringGlow.material.opacity = 0.16;
-    ringGlow.scale.setScalar(1);
+    ringGlow.material.opacity = 0.24;
+    ringGlow.scale.setScalar(1.1);
   }
 
-  setEmissiveIntensity(battery, 0.42);
-  setEmissiveIntensity(ring, 0.65);
+  setEmissiveIntensity(battery, 0.75);
+  setEmissiveIntensity(ring, 0.95);
 });
-
 
 /* ===================================== */
 /* RESIZE                                */
@@ -792,7 +670,6 @@ window.addEventListener("resize", () => {
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
-
 
 /* ===================================== */
 /* ANIMATE                               */
@@ -810,8 +687,7 @@ function animate() {
   updateCharge();
 
   if (battery && !completed) {
-    battery.position.y =
-      Math.sin(time * 0.9) * 0.012;
+    battery.position.y = -0.1 + Math.sin(time * 0.9) * 0.012;
   }
 
   renderer.render(scene, camera);
