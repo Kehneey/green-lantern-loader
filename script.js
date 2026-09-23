@@ -282,34 +282,33 @@ function createBatteryGlow() {
     map: texture,
     color: 0x42ff8a,
     transparent: true,
-    opacity: 0.35,
+    opacity: 0.42,
     depthWrite: false,
-    depthTest: true,
+    depthTest: false,
     blending: THREE.AdditiveBlending
   });
 
   const coreMaterial = new THREE.SpriteMaterial({
     map: texture,
-    color: 0xcaffd9,
+    color: 0xe9fff0,
     transparent: true,
-    opacity: 0.9,
+    opacity: 1,
     depthWrite: false,
-    depthTest: true,
+    depthTest: false,
     blending: THREE.AdditiveBlending
   });
 
   batteryGlow = new THREE.Sprite(auraMaterial);
   batteryCoreGlow = new THREE.Sprite(coreMaterial);
 
-  const frontZ = -batterySize.z * 0.53;
-  batteryGlow.position.set(0, 0.02, frontZ - 0.02);
-  batteryCoreGlow.position.set(0, 0.02, frontZ - 0.04);
+  batteryGlow.renderOrder = 1000;
+  batteryCoreGlow.renderOrder = 1001;
 
-  batteryGlow.scale.set(2.05, 2.05, 1);
-  batteryCoreGlow.scale.set(0.9, 0.9, 1);
+  batteryGlow.scale.set(2.15, 2.15, 1);
+  batteryCoreGlow.scale.set(0.82, 0.82, 1);
 
-  battery.add(batteryGlow);
-  battery.add(batteryCoreGlow);
+  scene.add(batteryGlow);
+  scene.add(batteryCoreGlow);
 }
 
 function createRingGlow() {
@@ -319,33 +318,33 @@ function createRingGlow() {
     map: texture,
     color: 0x3dff86,
     transparent: true,
-    opacity: 0.34,
+    opacity: 0.4,
     depthWrite: false,
-    depthTest: true,
+    depthTest: false,
     blending: THREE.AdditiveBlending
   });
 
   const coreMaterial = new THREE.SpriteMaterial({
     map: texture,
-    color: 0xdffff0,
+    color: 0xf0fff5,
     transparent: true,
-    opacity: 0.82,
+    opacity: 0.95,
     depthWrite: false,
-    depthTest: true,
+    depthTest: false,
     blending: THREE.AdditiveBlending
   });
 
   ringGlow = new THREE.Sprite(auraMaterial);
   ringCoreGlow = new THREE.Sprite(coreMaterial);
 
-  ringGlow.position.set(0, 0, -0.22);
-  ringCoreGlow.position.set(0, 0, -0.24);
+  ringGlow.renderOrder = 1002;
+  ringCoreGlow.renderOrder = 1003;
 
-  ringGlow.scale.set(0.72, 0.72, 1);
-  ringCoreGlow.scale.set(0.34, 0.34, 1);
+  ringGlow.scale.set(0.76, 0.76, 1);
+  ringCoreGlow.scale.set(0.3, 0.3, 1);
 
-  ring.add(ringGlow);
-  ring.add(ringCoreGlow);
+  scene.add(ringGlow);
+  scene.add(ringCoreGlow);
 }
 
 /* ===================================== */
@@ -412,17 +411,45 @@ function worldToScreen(position) {
 /* SOCKET                                */
 /* ===================================== */
 
-function getChargeSocketWorld() {
+function getBatteryFrontWorld() {
   if (!battery) return new THREE.Vector3();
 
-  /* center-front contact, closer to the usual GL charging pose */
-  const socket = new THREE.Vector3(
+  const p = new THREE.Vector3(
     0,
     0.02,
-    -batterySize.z * 0.54
+    -batterySize.z * 0.56
   );
 
-  return battery.localToWorld(socket);
+  return battery.localToWorld(p);
+}
+
+function getChargeSocketWorld() {
+  return getBatteryFrontWorld();
+}
+
+function getRingFrontWorld() {
+  if (!ring) return new THREE.Vector3();
+
+  const p = new THREE.Vector3(0, 0, -0.24);
+  return ring.localToWorld(p);
+}
+
+function updateFrontGlows() {
+  if (batteryGlow && batteryCoreGlow && battery) {
+    const p = getBatteryFrontWorld();
+    const towardCamera = camera.position.clone().sub(p).normalize();
+
+    batteryGlow.position.copy(p).addScaledVector(towardCamera, 0.08);
+    batteryCoreGlow.position.copy(p).addScaledVector(towardCamera, 0.11);
+  }
+
+  if (ringGlow && ringCoreGlow && ring) {
+    const p = getRingFrontWorld();
+    const towardCamera = camera.position.clone().sub(p).normalize();
+
+    ringGlow.position.copy(p).addScaledVector(towardCamera, 0.04);
+    ringCoreGlow.position.copy(p).addScaledVector(towardCamera, 0.06);
+  }
 }
 
 /* ===================================== */
@@ -589,9 +616,10 @@ function updateEnergyVisuals() {
   const proximity = attractionLevel;
 
   const socketWorld = getChargeSocketWorld();
+  const towardCamera = camera.position.clone().sub(socketWorld).normalize();
 
-  energyLight.position.copy(socketWorld);
-  contactLight.position.copy(socketWorld.clone().add(new THREE.Vector3(0, 0, 0.15)));
+  energyLight.position.copy(socketWorld).addScaledVector(towardCamera, 0.18);
+  contactLight.position.copy(socketWorld).addScaledVector(towardCamera, 0.26);
 
   energyLight.intensity =
     2.8 +
@@ -889,22 +917,22 @@ restart.addEventListener("click", () => {
   contactLight.distance = 8;
 
   if (batteryGlow) {
-    batteryGlow.material.opacity = 0.35;
+    batteryGlow.material.opacity = 0.42;
     batteryGlow.scale.set(2.05, 2.05, 1);
   }
 
   if (batteryCoreGlow) {
-    batteryCoreGlow.material.opacity = 0.9;
+    batteryCoreGlow.material.opacity = 1;
     batteryCoreGlow.scale.set(0.9, 0.9, 1);
   }
 
   if (ringGlow) {
-    ringGlow.material.opacity = 0.34;
+    ringGlow.material.opacity = 0.4;
     ringGlow.scale.set(0.72, 0.72, 1);
   }
 
   if (ringCoreGlow) {
-    ringCoreGlow.material.opacity = 0.82;
+    ringCoreGlow.material.opacity = 0.95;
     ringCoreGlow.scale.set(0.34, 0.34, 1);
   }
 
@@ -934,6 +962,7 @@ function animate() {
   const time = clock.getElapsedTime();
 
   updateRing(time);
+  updateFrontGlows();
   updateBeam();
   updateCharge();
 
