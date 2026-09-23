@@ -265,3 +265,10 @@ button { font: inherit; }
   .instruction { width: 100%; padding: 0 20px; white-space: normal; }
   .model-status { left: 20px; bottom: 20px; }
 }
+.beam-core {
+  stroke-width: 3.5;
+}
+
+.beam-blur {
+  stroke-width: 24;
+}
