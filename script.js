@@ -336,12 +336,20 @@ function updateChargeVisuals() {
     ringGlow.scale.setScalar(1 + intensity * 0.8);
   }
 
-  if (battery?.material) {
-    battery.material.emissiveIntensity = 0.3 + intensity * 1.4;
+  if (battery) {
+    battery.traverse(child => {
+      if (child.isMesh && child.material && "emissiveIntensity" in child.material) {
+        child.material.emissiveIntensity = 0.3 + intensity * 1.4;
+      }
+    });
   }
 
-  if (ring?.material) {
-    ring.material.emissiveIntensity = 0.35 + intensity * 1.7;
+  if (ring) {
+    ring.traverse(child => {
+      if (child.isMesh && child.material && "emissiveIntensity" in child.material) {
+        child.material.emissiveIntensity = 0.35 + intensity * 1.7;
+      }
+    });
   }
 
   ambient.style.opacity = `${0.13 + intensity * 0.77}`;
