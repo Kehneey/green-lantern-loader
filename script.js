@@ -39,7 +39,9 @@ const RING_SNAP_ROT = new THREE.Euler(
 let battery = null;
 let ring = null;
 let batteryGlow = null;
+let batteryCoreGlow = null;
 let ringGlow = null;
+let ringCoreGlow = null;
 let batterySize = new THREE.Vector3(1, 1, 1);
 let ringTargetScale = 1;
 let loadedModels = 0;
@@ -145,13 +147,13 @@ function prepareModelMaterials(object, isRing = false) {
     if (!child.isMesh) return;
 
     child.material = new THREE.MeshPhysicalMaterial({
-      color: isRing ? 0x22d965 : 0x587066,
-      metalness: isRing ? 0.98 : 0.82,
-      roughness: isRing ? 0.12 : 0.25,
+      color: isRing ? 0x28e66f : 0x176a3c,
+      metalness: isRing ? 0.98 : 0.72,
+      roughness: isRing ? 0.12 : 0.22,
       clearcoat: 1,
-      clearcoatRoughness: 0.12,
-      emissive: isRing ? 0x0f7735 : 0x0b4e24,
-      emissiveIntensity: isRing ? 1.1 : 1.0
+      clearcoatRoughness: 0.1,
+      emissive: isRing ? 0x0f8a3b : 0x07572b,
+      emissiveIntensity: isRing ? 1.15 : 0.9
     });
 
     child.castShadow = true;
@@ -251,35 +253,99 @@ gltfLoader.load(
 /* GLOWS                                 */
 /* ===================================== */
 
-function createBatteryGlow() {
-  const geometry = new THREE.SphereGeometry(0.98, 36, 36);
+function createRadialGlowTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
 
-  const material = new THREE.MeshBasicMaterial({
-    color: 0x38ff85,
+  const ctx = canvas.getContext("2d");
+  const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+
+  gradient.addColorStop(0, "rgba(235,255,241,1)");
+  gradient.addColorStop(0.12, "rgba(175,255,198,.95)");
+  gradient.addColorStop(0.32, "rgba(55,255,122,.8)");
+  gradient.addColorStop(0.62, "rgba(0,255,102,.28)");
+  gradient.addColorStop(1, "rgba(0,255,102,0)");
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 256, 256);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function createBatteryGlow() {
+  const texture = createRadialGlowTexture();
+
+  const auraMaterial = new THREE.SpriteMaterial({
+    map: texture,
+    color: 0x42ff8a,
     transparent: true,
-    opacity: 0.22,
+    opacity: 0.35,
     depthWrite: false,
+    depthTest: true,
     blending: THREE.AdditiveBlending
   });
 
-  batteryGlow = new THREE.Mesh(geometry, material);
-  batteryGlow.position.set(0, 0.04, 0.42);
+  const coreMaterial = new THREE.SpriteMaterial({
+    map: texture,
+    color: 0xcaffd9,
+    transparent: true,
+    opacity: 0.9,
+    depthWrite: false,
+    depthTest: true,
+    blending: THREE.AdditiveBlending
+  });
+
+  batteryGlow = new THREE.Sprite(auraMaterial);
+  batteryCoreGlow = new THREE.Sprite(coreMaterial);
+
+  const frontZ = -batterySize.z * 0.53;
+  batteryGlow.position.set(0, 0.02, frontZ - 0.02);
+  batteryCoreGlow.position.set(0, 0.02, frontZ - 0.04);
+
+  batteryGlow.scale.set(2.05, 2.05, 1);
+  batteryCoreGlow.scale.set(0.9, 0.9, 1);
+
   battery.add(batteryGlow);
+  battery.add(batteryCoreGlow);
 }
 
 function createRingGlow() {
-  const geometry = new THREE.SphereGeometry(0.48, 24, 24);
+  const texture = createRadialGlowTexture();
 
-  const material = new THREE.MeshBasicMaterial({
-    color: 0x38ff85,
+  const auraMaterial = new THREE.SpriteMaterial({
+    map: texture,
+    color: 0x3dff86,
     transparent: true,
-    opacity: 0.22,
+    opacity: 0.34,
     depthWrite: false,
+    depthTest: true,
     blending: THREE.AdditiveBlending
   });
 
-  ringGlow = new THREE.Mesh(geometry, material);
+  const coreMaterial = new THREE.SpriteMaterial({
+    map: texture,
+    color: 0xdffff0,
+    transparent: true,
+    opacity: 0.82,
+    depthWrite: false,
+    depthTest: true,
+    blending: THREE.AdditiveBlending
+  });
+
+  ringGlow = new THREE.Sprite(auraMaterial);
+  ringCoreGlow = new THREE.Sprite(coreMaterial);
+
+  ringGlow.position.set(0, 0, -0.22);
+  ringCoreGlow.position.set(0, 0, -0.24);
+
+  ringGlow.scale.set(0.72, 0.72, 1);
+  ringCoreGlow.scale.set(0.34, 0.34, 1);
+
   ring.add(ringGlow);
+  ring.add(ringCoreGlow);
 }
 
 /* ===================================== */
@@ -353,7 +419,7 @@ function getChargeSocketWorld() {
   const socket = new THREE.Vector3(
     0,
     0.02,
-    batterySize.z * 0.53
+    -batterySize.z * 0.54
   );
 
   return battery.localToWorld(socket);
@@ -550,42 +616,72 @@ function updateEnergyVisuals() {
 
   if (batteryGlow) {
     batteryGlow.material.opacity =
-      0.22 +
-      proximity * 0.18 +
-      chargeLevel * 0.44;
+      0.34 +
+      proximity * 0.22 +
+      chargeLevel * 0.34;
 
-    batteryGlow.scale.setScalar(
-      1.2 +
-      proximity * 0.5 +
-      chargeLevel * 2.6
-    );
+    const auraScale =
+      2.05 +
+      proximity * 0.45 +
+      chargeLevel * 1.35;
+
+    batteryGlow.scale.set(auraScale, auraScale, 1);
+  }
+
+  if (batteryCoreGlow) {
+    batteryCoreGlow.material.opacity =
+      0.86 +
+      proximity * 0.08 +
+      chargeLevel * 0.06;
+
+    const coreScale =
+      0.9 +
+      proximity * 0.18 +
+      chargeLevel * 0.48;
+
+    batteryCoreGlow.scale.set(coreScale, coreScale, 1);
   }
 
   if (ringGlow) {
     ringGlow.material.opacity =
-      0.22 +
-      proximity * 0.28 +
-      chargeLevel * 0.32;
+      0.34 +
+      proximity * 0.34 +
+      chargeLevel * 0.22;
 
-    ringGlow.scale.setScalar(
-      1.05 +
-      proximity * 0.35 +
-      chargeLevel * 0.95
-    );
+    const ringAuraScale =
+      0.72 +
+      proximity * 0.18 +
+      chargeLevel * 0.28;
+
+    ringGlow.scale.set(ringAuraScale, ringAuraScale, 1);
+  }
+
+  if (ringCoreGlow) {
+    ringCoreGlow.material.opacity =
+      0.78 +
+      proximity * 0.16 +
+      chargeLevel * 0.06;
+
+    const ringCoreScale =
+      0.34 +
+      proximity * 0.1 +
+      chargeLevel * 0.18;
+
+    ringCoreGlow.scale.set(ringCoreScale, ringCoreScale, 1);
   }
 
   setEmissiveIntensity(
     battery,
-    1.0 +
-    proximity * 0.8 +
-    chargeLevel * 1.9
+    1.2 +
+    proximity * 1.0 +
+    chargeLevel * 2.0
   );
 
   setEmissiveIntensity(
     ring,
-    1.1 +
-    proximity * 1.1 +
-    chargeLevel * 2.2
+    1.3 +
+    proximity * 1.25 +
+    chargeLevel * 2.3
   );
 
   ambient.style.opacity = `${
@@ -739,13 +835,23 @@ function finishCharge() {
   contactLight.distance = 10;
 
   if (batteryGlow) {
-    batteryGlow.material.opacity = 0.96;
-    batteryGlow.scale.setScalar(4.7);
+    batteryGlow.material.opacity = 1;
+    batteryGlow.scale.set(4.2, 4.2, 1);
+  }
+
+  if (batteryCoreGlow) {
+    batteryCoreGlow.material.opacity = 1;
+    batteryCoreGlow.scale.set(1.65, 1.65, 1);
   }
 
   if (ringGlow) {
-    ringGlow.material.opacity = 0.98;
-    ringGlow.scale.setScalar(2.35);
+    ringGlow.material.opacity = 1;
+    ringGlow.scale.set(1.35, 1.35, 1);
+  }
+
+  if (ringCoreGlow) {
+    ringCoreGlow.material.opacity = 1;
+    ringCoreGlow.scale.set(0.66, 0.66, 1);
   }
 
   setEmissiveIntensity(battery, 3.0);
@@ -783,13 +889,23 @@ restart.addEventListener("click", () => {
   contactLight.distance = 8;
 
   if (batteryGlow) {
-    batteryGlow.material.opacity = 0.22;
-    batteryGlow.scale.setScalar(1.2);
+    batteryGlow.material.opacity = 0.35;
+    batteryGlow.scale.set(2.05, 2.05, 1);
+  }
+
+  if (batteryCoreGlow) {
+    batteryCoreGlow.material.opacity = 0.9;
+    batteryCoreGlow.scale.set(0.9, 0.9, 1);
   }
 
   if (ringGlow) {
-    ringGlow.material.opacity = 0.22;
-    ringGlow.scale.setScalar(1.05);
+    ringGlow.material.opacity = 0.34;
+    ringGlow.scale.set(0.72, 0.72, 1);
+  }
+
+  if (ringCoreGlow) {
+    ringCoreGlow.material.opacity = 0.82;
+    ringCoreGlow.scale.set(0.34, 0.34, 1);
   }
 
   setEmissiveIntensity(battery, 1.0);
