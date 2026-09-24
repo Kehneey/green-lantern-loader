@@ -34,7 +34,6 @@ let ring;
 let ringFace;
 let ringFaceHalo;
 let ringBand;
-let ringAccentMeshes = [];
 
 let mouseX = window.innerWidth * 0.2;
 let mouseY = window.innerHeight * 0.58;
@@ -49,7 +48,7 @@ let charge = 0;
 let attractionLevel = 0;
 
 const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x020604, 0.026);
+scene.fog = new THREE.FogExp2(0x020604, 0.022);
 
 const camera = new THREE.PerspectiveCamera(
   32,
@@ -57,12 +56,13 @@ const camera = new THREE.PerspectiveCamera(
   0.1,
   100
 );
-camera.position.set(0, 0.05, 9.5);
+camera.position.set(0, 0.0, 10.6);
 
 const renderer = new THREE.WebGLRenderer({
   antialias: true,
   alpha: true
 });
+
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setClearColor(0x000000, 0);
@@ -81,8 +81,8 @@ composer.addPass(new RenderPass(scene, camera));
 
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.56,
-  0.48,
+  0.58,
+  0.42,
   0.84
 );
 composer.addPass(bloomPass);
@@ -91,24 +91,24 @@ composer.addPass(bloomPass);
 /* LIGHTING                              */
 /* ===================================== */
 
-scene.add(new THREE.AmbientLight(0x7fa88d, 0.78));
+scene.add(new THREE.AmbientLight(0x7fa88d, 0.74));
 
-const keyLight = new THREE.DirectionalLight(0xdaf4e1, 2.2);
+const keyLight = new THREE.DirectionalLight(0xe2f9ea, 2.15);
 keyLight.position.set(4.2, 5.2, 6.6);
 scene.add(keyLight);
 
-const fillLight = new THREE.DirectionalLight(0x2d5a3d, 1.2);
+const fillLight = new THREE.DirectionalLight(0x254c34, 1.1);
 fillLight.position.set(-4, 1.2, 4.2);
 scene.add(fillLight);
 
-const rimLight = new THREE.DirectionalLight(0x00ff66, 1.6);
+const rimLight = new THREE.DirectionalLight(0x00ff66, 1.3);
 rimLight.position.set(-2.2, 3.2, -4.2);
 scene.add(rimLight);
 
-const chargeLight = new THREE.PointLight(0x3bff82, 1.2, 9, 2);
+const chargeLight = new THREE.PointLight(0x67ff9e, 1.4, 9, 2);
 scene.add(chargeLight);
 
-const contactLight = new THREE.PointLight(0xcfffe0, 0, 5, 2);
+const contactLight = new THREE.PointLight(0xe2ffe9, 0, 6, 2);
 scene.add(contactLight);
 
 /* ===================================== */
@@ -131,7 +131,7 @@ function physicalMaterial({
     metalness,
     roughness,
     clearcoat: 0.45,
-    clearcoatRoughness: 0.22,
+    clearcoatRoughness: 0.18,
     transparent,
     opacity,
     side: THREE.FrontSide
@@ -159,153 +159,146 @@ function createBattery() {
 
   const shell = physicalMaterial({
     color: 0x0d2a1a,
-    emissive: 0x04140c,
-    emissiveIntensity: 0.14,
-    metalness: 0.62,
-    roughness: 0.26
+    emissive: 0x03120b,
+    emissiveIntensity: 0.12,
+    metalness: 0.64,
+    roughness: 0.24
   });
 
   const trim = physicalMaterial({
-    color: 0x1c6139,
-    emissive: 0x072717,
-    emissiveIntensity: 0.2,
-    metalness: 0.7,
-    roughness: 0.22
+    color: 0x1b5f38,
+    emissive: 0x072516,
+    emissiveIntensity: 0.18,
+    metalness: 0.72,
+    roughness: 0.2
   });
 
   const darkMetal = physicalMaterial({
-    color: 0x06120c,
-    emissive: 0x010704,
-    emissiveIntensity: 0.04,
-    metalness: 0.82,
-    roughness: 0.3
+    color: 0x07130d,
+    emissive: 0x010604,
+    emissiveIntensity: 0.03,
+    metalness: 0.84,
+    roughness: 0.28
   });
-
-  const energyMat = glowMaterial(0x5dff94, 0.68);
 
   batteryAccentMeshes = [];
 
-  /* main lantern silhouette using a lathed profile */
   const bodyProfile = [
-    new THREE.Vector2(0.72, -1.16),
-    new THREE.Vector2(0.9, -1.03),
-    new THREE.Vector2(1.02, -0.72),
-    new THREE.Vector2(1.08, -0.26),
-    new THREE.Vector2(1.08, 0.3),
-    new THREE.Vector2(1.0, 0.74),
-    new THREE.Vector2(0.86, 1.02),
-    new THREE.Vector2(0.7, 1.16)
+    new THREE.Vector2(0.74, -1.18),
+    new THREE.Vector2(0.9, -1.06),
+    new THREE.Vector2(1.02, -0.74),
+    new THREE.Vector2(1.08, -0.28),
+    new THREE.Vector2(1.08, 0.28),
+    new THREE.Vector2(1.0, 0.76),
+    new THREE.Vector2(0.88, 1.04),
+    new THREE.Vector2(0.72, 1.18)
   ];
 
-  const bodyGeo = new THREE.LatheGeometry(bodyProfile, 48);
+  const bodyGeo = new THREE.LatheGeometry(bodyProfile, 72);
   bodyGeo.rotateX(Math.PI / 2);
 
   batteryBody = new THREE.Mesh(bodyGeo, shell);
   group.add(batteryBody);
 
   const upperShoulder = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.7, 0.86, 0.28, 36),
+    new THREE.CylinderGeometry(0.72, 0.88, 0.26, 48),
     trim
   );
-  upperShoulder.position.y = 1.22;
+  upperShoulder.position.y = 1.24;
   group.add(upperShoulder);
 
   const neck = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.54, 0.54, 0.58, 36),
+    new THREE.CylinderGeometry(0.54, 0.54, 0.56, 48),
     darkMetal
   );
-  neck.position.y = 1.63;
+  neck.position.y = 1.62;
   group.add(neck);
 
   const upperCap = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.82, 0.68, 0.22, 36),
+    new THREE.CylinderGeometry(0.82, 0.7, 0.2, 48),
     trim
   );
-  upperCap.position.y = 2.02;
+  upperCap.position.y = 2.0;
   group.add(upperCap);
 
   const lowerShoulder = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.76, 0.92, 0.24, 36),
+    new THREE.CylinderGeometry(0.78, 0.92, 0.24, 48),
     trim
   );
-  lowerShoulder.position.y = -1.23;
+  lowerShoulder.position.y = -1.24;
   group.add(lowerShoulder);
 
   const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.76, 0.93, 0.5, 36),
+    new THREE.CylinderGeometry(0.76, 0.94, 0.48, 48),
     darkMetal
   );
-  base.position.y = -1.55;
+  base.position.y = -1.54;
   group.add(base);
 
   const baseTrim = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.98, 0.98, 0.1, 36),
+    new THREE.CylinderGeometry(0.98, 0.98, 0.1, 48),
     trim
   );
-  baseTrim.position.y = -1.86;
+  baseTrim.position.y = -1.84;
   group.add(baseTrim);
 
-  /* sculpted rectangular handle */
   const handleMat = physicalMaterial({
     color: 0x0a2115,
-    emissive: 0x020d07,
-    emissiveIntensity: 0.08,
-    metalness: 0.78,
-    roughness: 0.25
+    emissive: 0x020c07,
+    emissiveIntensity: 0.06,
+    metalness: 0.8,
+    roughness: 0.24
   });
 
   const handleCurve = new THREE.CatmullRomCurve3([
-    new THREE.Vector3(-0.67, 2.03, 0),
-    new THREE.Vector3(-0.67, 2.5, 0),
+    new THREE.Vector3(-0.66, 2.02, 0),
+    new THREE.Vector3(-0.66, 2.48, 0),
     new THREE.Vector3(0, 2.72, 0),
-    new THREE.Vector3(0.67, 2.5, 0),
-    new THREE.Vector3(0.67, 2.03, 0)
+    new THREE.Vector3(0.66, 2.48, 0),
+    new THREE.Vector3(0.66, 2.02, 0)
   ]);
 
   const handle = new THREE.Mesh(
-    new THREE.TubeGeometry(handleCurve, 48, 0.075, 10, false),
+    new THREE.TubeGeometry(handleCurve, 64, 0.07, 16, false),
     handleMat
   );
   group.add(handle);
 
-  /* side housings */
   for (const side of [-1, 1]) {
     const housing = new THREE.Mesh(
-      new THREE.BoxGeometry(0.38, 0.7, 0.46),
+      new THREE.CapsuleGeometry(0.16, 0.28, 10, 20),
       trim
     );
-    housing.position.set(side * 1.18, 0, 0.03);
-    housing.rotation.z = side * THREE.MathUtils.degToRad(-8);
+    housing.rotation.z = Math.PI / 2;
+    housing.position.set(side * 1.18, 0, 0.02);
     group.add(housing);
 
     const energyPanel = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.24, 0.46),
-      energyMat.clone()
+      new THREE.PlaneGeometry(0.2, 0.42),
+      glowMaterial(0x7effa8, 0.72)
     );
-    energyPanel.position.set(side * 1.18, 0, 0.27);
-    energyPanel.rotation.z = side * THREE.MathUtils.degToRad(-8);
+    energyPanel.position.set(side * 1.18, 0, 0.25);
     group.add(energyPanel);
 
     batteryAccentMeshes.push(energyPanel);
   }
 
-  /* front lens assembly */
   const lensHousing = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.6, 0.6, 0.16, 64),
+    new THREE.CylinderGeometry(0.6, 0.6, 0.15, 72),
     darkMetal
   );
   lensHousing.rotation.x = Math.PI / 2;
-  lensHousing.position.z = 1.09;
+  lensHousing.position.z = 1.1;
   group.add(lensHousing);
 
   const lensBezel = new THREE.Mesh(
-    new THREE.RingGeometry(0.39, 0.53, 72),
+    new THREE.RingGeometry(0.39, 0.53, 96),
     new THREE.MeshStandardMaterial({
-      color: 0x2b7a49,
-      emissive: 0x0a3c21,
+      color: 0x2a7b48,
+      emissive: 0x09361e,
       emissiveIntensity: 0.2,
-      metalness: 0.5,
-      roughness: 0.18,
+      metalness: 0.52,
+      roughness: 0.16,
       side: THREE.DoubleSide
     })
   );
@@ -313,37 +306,37 @@ function createBattery() {
   group.add(lensBezel);
 
   batteryLens = new THREE.Mesh(
-    new THREE.CircleGeometry(0.36, 72),
-    glowMaterial(0x91ffb6, 0.7)
+    new THREE.CircleGeometry(0.36, 96),
+    glowMaterial(0xb7ffcb, 0.78)
   );
   batteryLens.position.z = 1.19;
   group.add(batteryLens);
 
   batteryLensHalo = new THREE.Mesh(
-    new THREE.RingGeometry(0.37, 0.48, 72),
-    glowMaterial(0x1fff6a, 0.07)
+    new THREE.RingGeometry(0.37, 0.5, 96),
+    glowMaterial(0x18ff67, 0.09)
   );
   batteryLensHalo.position.z = 1.185;
   group.add(batteryLensHalo);
 
   batteryInner = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.38, 0.38, 0.14, 64),
+    new THREE.CylinderGeometry(0.38, 0.38, 0.16, 72),
     physicalMaterial({
-      color: 0x11c855,
+      color: 0x12c857,
       emissive: 0x00ff66,
-      emissiveIntensity: 0.34,
+      emissiveIntensity: 0.32,
       metalness: 0,
-      roughness: 0.28,
+      roughness: 0.26,
       transparent: true,
       opacity: 0.05
     })
   );
   batteryInner.rotation.x = Math.PI / 2;
-  batteryInner.position.z = 1.02;
+  batteryInner.position.z = 1.04;
   group.add(batteryInner);
 
-  group.position.set(0, -0.16, 0);
-  group.scale.setScalar(0.8);
+  group.position.set(0, -0.28, 0);
+  group.scale.setScalar(0.68);
 
   scene.add(group);
   return group;
@@ -357,104 +350,104 @@ function createRing() {
   const group = new THREE.Group();
 
   const bandMaterial = physicalMaterial({
-    color: 0x0d2016,
-    emissive: 0x020805,
-    emissiveIntensity: 0.05,
-    metalness: 0.9,
-    roughness: 0.16
+    color: 0x0d1f15,
+    emissive: 0x020705,
+    emissiveIntensity: 0.04,
+    metalness: 0.92,
+    roughness: 0.14
   });
 
   const crownMaterial = physicalMaterial({
-    color: 0x1b5a34,
-    emissive: 0x072416,
-    emissiveIntensity: 0.14,
-    metalness: 0.72,
-    roughness: 0.16
+    color: 0x1a5a33,
+    emissive: 0x072315,
+    emissiveIntensity: 0.12,
+    metalness: 0.74,
+    roughness: 0.15
   });
 
   ringBand = new THREE.Mesh(
-    new THREE.TorusGeometry(0.33, 0.045, 28, 112),
+    new THREE.TorusGeometry(0.29, 0.032, 32, 128),
     bandMaterial
   );
   group.add(ringBand);
 
-  const crown = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.15, 0.19, 0.085, 48),
-    crownMaterial
-  );
-  crown.rotation.x = Math.PI / 2;
-  crown.position.z = 0.095;
-  group.add(crown);
-
   const leftShoulder = new THREE.Mesh(
-    new THREE.BoxGeometry(0.16, 0.1, 0.1),
+    new THREE.BoxGeometry(0.11, 0.08, 0.08),
     crownMaterial
   );
-  leftShoulder.position.set(-0.17, 0, 0.07);
-  leftShoulder.rotation.z = THREE.MathUtils.degToRad(18);
+  leftShoulder.position.set(-0.135, 0, 0.05);
+  leftShoulder.rotation.z = THREE.MathUtils.degToRad(20);
 
   const rightShoulder = leftShoulder.clone();
-  rightShoulder.position.x = 0.17;
-  rightShoulder.rotation.z = THREE.MathUtils.degToRad(-18);
+  rightShoulder.position.x = 0.135;
+  rightShoulder.rotation.z = THREE.MathUtils.degToRad(-20);
 
   group.add(leftShoulder, rightShoulder);
 
+  const crown = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.11, 0.135, 0.06, 64),
+    crownMaterial
+  );
+  crown.rotation.x = Math.PI / 2;
+  crown.position.z = 0.07;
+  group.add(crown);
+
   const bezel = new THREE.Mesh(
-    new THREE.RingGeometry(0.1, 0.14, 56),
+    new THREE.RingGeometry(0.075, 0.105, 64),
     new THREE.MeshStandardMaterial({
-      color: 0x32a85c,
-      emissive: 0x0a351d,
-      emissiveIntensity: 0.16,
+      color: 0x33aa5d,
+      emissive: 0x092e19,
+      emissiveIntensity: 0.12,
       metalness: 0.58,
-      roughness: 0.16,
+      roughness: 0.14,
       side: THREE.DoubleSide
     })
   );
-  bezel.position.z = 0.15;
+  bezel.position.z = 0.112;
   group.add(bezel);
 
   ringFace = new THREE.Mesh(
-    new THREE.CircleGeometry(0.095, 56),
-    glowMaterial(0x8cffb2, 0.72)
+    new THREE.CircleGeometry(0.07, 72),
+    glowMaterial(0x9fffc0, 0.76)
   );
-  ringFace.position.z = 0.157;
+  ringFace.position.z = 0.118;
   group.add(ringFace);
 
   ringFaceHalo = new THREE.Mesh(
-    new THREE.RingGeometry(0.098, 0.135, 56),
+    new THREE.RingGeometry(0.072, 0.1, 72),
     glowMaterial(0x16ff66, 0.05)
   );
-  ringFaceHalo.position.z = 0.154;
+  ringFaceHalo.position.z = 0.115;
   group.add(ringFaceHalo);
 
   const emblemMaterial = new THREE.MeshBasicMaterial({
-    color: 0x071d0d,
+    color: 0x06190c,
     toneMapped: false,
     side: THREE.DoubleSide
   });
 
   const emblemCircle = new THREE.Mesh(
-    new THREE.RingGeometry(0.029, 0.044, 40),
+    new THREE.RingGeometry(0.02, 0.032, 48),
     emblemMaterial
   );
-  emblemCircle.position.z = 0.162;
+  emblemCircle.position.z = 0.122;
 
   const topLine = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.086, 0.01),
+    new THREE.PlaneGeometry(0.06, 0.008),
     emblemMaterial
   );
-  topLine.position.set(0, 0.052, 0.164);
+  topLine.position.set(0, 0.036, 0.124);
 
   const bottomLine = topLine.clone();
-  bottomLine.position.y = -0.052;
+  bottomLine.position.y = -0.036;
 
   group.add(emblemCircle, topLine, bottomLine);
 
-  group.scale.setScalar(0.76);
+  group.scale.setScalar(0.62);
   group.rotation.set(
-    THREE.MathUtils.degToRad(15),
-    THREE.MathUtils.degToRad(-24),
-    THREE.MathUtils.degToRad(-13)
+    THREE.MathUtils.degToRad(22),
+    THREE.MathUtils.degToRad(-34),
+    THREE.MathUtils.degToRad(-10)
   );
 
   scene.add(group);
@@ -474,7 +467,7 @@ if (modelStatus) {
 }
 
 /* ===================================== */
-/* POINTER                               */
+/* POINTER EVENTS                        */
 /* ===================================== */
 
 window.addEventListener("mousemove", event => {
@@ -532,7 +525,7 @@ function worldToScreen(position) {
 }
 
 function getChargeSocketWorld() {
-  return battery.localToWorld(new THREE.Vector3(0, 0, 0.92));
+  return battery.localToWorld(new THREE.Vector3(0, 0, 1.2));
 }
 
 /* ===================================== */
@@ -574,29 +567,29 @@ function updateRing(time) {
   let target = screenToWorld(visualX, visualY, 2.0);
 
   if (isSnapped) {
-    target = socketWorld.clone().add(new THREE.Vector3(0, 0, 0.1));
+    target = socketWorld.clone().add(new THREE.Vector3(0, 0, 0.08));
   }
 
   ring.position.lerp(target, isSnapped ? 0.26 : 0.23);
 
   const targetX = isSnapped
-    ? THREE.MathUtils.degToRad(10)
-    : THREE.MathUtils.degToRad(18);
+    ? THREE.MathUtils.degToRad(14)
+    : THREE.MathUtils.degToRad(22);
 
   const targetY = isSnapped
-    ? THREE.MathUtils.degToRad(-12)
-    : THREE.MathUtils.degToRad(-28);
+    ? THREE.MathUtils.degToRad(-18)
+    : THREE.MathUtils.degToRad(-34);
 
   const targetZ = isSnapped
     ? THREE.MathUtils.degToRad(-6)
-    : THREE.MathUtils.degToRad(-14) + Math.sin(time * 2.2) * 0.018;
+    : THREE.MathUtils.degToRad(-10) + Math.sin(time * 2.1) * 0.014;
 
   ring.rotation.x = THREE.MathUtils.lerp(ring.rotation.x, targetX, 0.08);
   ring.rotation.y = THREE.MathUtils.lerp(ring.rotation.y, targetY, 0.08);
   ring.rotation.z = THREE.MathUtils.lerp(ring.rotation.z, targetZ, 0.08);
 
-  const snapPulse = isSnapped ? 1 + Math.sin(time * 7) * 0.01 : 1;
-  ring.scale.setScalar(0.74 * snapPulse);
+  const snapPulse = isSnapped ? 1 + Math.sin(time * 7) * 0.006 : 1;
+  ring.scale.setScalar(0.62 * snapPulse);
 
   if (charge <= 0) {
     instruction.textContent = isSnapped
@@ -668,93 +661,85 @@ function updateEnergyVisuals() {
   const chargeLevel = charge / 100;
   const proximity = attractionLevel;
 
-  batteryLens.material.opacity = 0.82 + chargeLevel * 0.08;
+  batteryLens.material.opacity = 0.78 + chargeLevel * 0.12;
   batteryLensHalo.material.opacity =
-    0.12 + proximity * 0.14 + chargeLevel * 0.18;
+    0.09 + proximity * 0.14 + chargeLevel * 0.22;
 
   batteryLens.scale.setScalar(
-    1 + proximity * 0.03 + chargeLevel * 0.05
+    1 + proximity * 0.04 + chargeLevel * 0.08
   );
 
   batteryLensHalo.scale.setScalar(
-    1 + proximity * 0.05 + chargeLevel * 0.09
+    1 + proximity * 0.06 + chargeLevel * 0.12
   );
 
   batteryInner.material.emissiveIntensity =
-    0.72 + proximity * 0.45 + chargeLevel * 1.25;
+    0.32 + proximity * 0.34 + chargeLevel * 1.3;
   batteryInner.material.opacity =
-    0.1 + proximity * 0.04 + chargeLevel * 0.08;
+    0.05 + proximity * 0.03 + chargeLevel * 0.09;
 
   batteryBody.material.emissiveIntensity =
-    0.2 + proximity * 0.15 + chargeLevel * 0.38;
+    0.12 + proximity * 0.08 + chargeLevel * 0.24;
 
   for (const mesh of batteryAccentMeshes) {
-    if (mesh.material.emissiveIntensity !== undefined) {
-      mesh.material.emissiveIntensity =
-        0.8 + proximity * 0.35 + chargeLevel * 0.7;
-    }
-
     if (mesh.material.opacity !== undefined) {
       mesh.material.opacity = Math.min(
-        0.58,
-        0.24 + proximity * 0.08 + chargeLevel * 0.14
+        0.9,
+        0.28 + proximity * 0.12 + chargeLevel * 0.18
       );
     }
   }
 
   ringFace.material.opacity =
-    0.84 + proximity * 0.06 + chargeLevel * 0.04;
+    0.76 + proximity * 0.06 + chargeLevel * 0.06;
   ringFaceHalo.material.opacity =
-    0.12 + proximity * 0.12 + chargeLevel * 0.16;
+    0.05 + proximity * 0.08 + chargeLevel * 0.12;
 
   ringFace.scale.setScalar(
-    1 + proximity * 0.03 + chargeLevel * 0.04
+    1 + proximity * 0.025 + chargeLevel * 0.05
   );
 
   ringFaceHalo.scale.setScalar(
-    1 + proximity * 0.05 + chargeLevel * 0.08
+    1 + proximity * 0.04 + chargeLevel * 0.08
   );
 
   ringBand.material.emissiveIntensity =
-    0.14 + proximity * 0.18 + chargeLevel * 0.36;
+    0.05 + proximity * 0.08 + chargeLevel * 0.18;
 
   const socket = getChargeSocketWorld();
 
   chargeLight.position.copy(socket);
   chargeLight.intensity =
-    1.2 + proximity * 1.5 + chargeLevel * 3.8;
+    1.4 + proximity * 1.9 + chargeLevel * 4.8;
   chargeLight.distance =
-    9 + proximity * 1.2 + chargeLevel * 2.2;
+    9 + proximity * 1.6 + chargeLevel * 3;
 
-  contactLight.position.copy(socket);
+  contactLight.position.copy(socket.clone().add(new THREE.Vector3(0, 0, 0.28)));
   contactLight.intensity =
-    proximity * 0.8 +
-    (isSnapped ? 1.1 : 0) +
-    (isHolding ? 1.6 : 0) +
-    chargeLevel * 2.6;
+    0.3 + proximity * 1.2 + (isSnapped ? 1.2 : 0) + (isHolding ? 2.2 : 0) + chargeLevel * 3.2;
   contactLight.distance =
-    5 + proximity * 0.8 + chargeLevel * 1.6;
+    6 + proximity * 1 + chargeLevel * 2.1;
 
   bloomPass.strength =
-    0.56 + proximity * 0.08 + chargeLevel * 0.24;
+    0.58 + proximity * 0.1 + chargeLevel * 0.32;
   bloomPass.radius =
-    0.48 + chargeLevel * 0.03;
+    0.42 + chargeLevel * 0.04;
   bloomPass.threshold =
-    0.84 - chargeLevel * 0.025;
+    0.84 - chargeLevel * 0.03;
 
   ambient.style.opacity = String(
-    0.11 + proximity * 0.06 + chargeLevel * 0.18
+    0.1 + proximity * 0.05 + chargeLevel * 0.16
   );
 
   floorGlow.style.opacity = String(
-    0.11 + proximity * 0.06 + chargeLevel * 0.22
+    0.1 + proximity * 0.05 + chargeLevel * 0.22
   );
 
   floorGlow.style.width = `${360 + chargeLevel * 180}px`;
 
   if (isHolding) {
     battery.rotation.z =
-      (Math.random() - 0.5) * chargeLevel * 0.002;
+      (Math.random() - 0.5) * chargeLevel * 0.0018;
   } else {
     battery.rotation.z *= 0.84;
   }
@@ -877,20 +862,22 @@ function finishCharge() {
   beam.classList.remove("visible");
   beamBlur.classList.remove("visible");
 
-  batteryLens.scale.setScalar(1.07);
-  batteryLensHalo.scale.setScalar(1.13);
+  batteryLens.scale.setScalar(1.14);
+  batteryLensHalo.scale.setScalar(1.24);
 
-  batteryInner.material.emissiveIntensity = 2.1;
-  batteryBody.material.emissiveIntensity = 0.72;
+  batteryInner.material.emissiveIntensity = 1.4;
+  batteryBody.material.emissiveIntensity = 0.42;
 
   ringFace.scale.setScalar(1.08);
-  ringFaceHalo.scale.setScalar(1.12);
+  ringFaceHalo.scale.setScalar(1.13);
 
-  chargeLight.intensity = 5.8;
-  contactLight.intensity = 4.4;
+  chargeLight.intensity = 6.6;
+  chargeLight.distance = 14;
+  contactLight.intensity = 5.2;
+  contactLight.distance = 10;
 
-  bloomPass.strength = 0.88;
-  bloomPass.radius = 0.52;
+  bloomPass.strength = 0.94;
+  bloomPass.radius = 0.48;
   bloomPass.threshold = 0.8;
 
   setTimeout(() => {
@@ -926,20 +913,20 @@ restart.addEventListener("click", () => {
   ringFace.scale.setScalar(1);
   ringFaceHalo.scale.setScalar(1);
 
-  batteryInner.material.emissiveIntensity = 0.8;
-  batteryInner.material.opacity = 0.12;
-  batteryBody.material.emissiveIntensity = 0.28;
+  batteryInner.material.emissiveIntensity = 0.32;
+  batteryInner.material.opacity = 0.05;
+  batteryBody.material.emissiveIntensity = 0.12;
 
-  ringBand.material.emissiveIntensity = 0.14;
+  ringBand.material.emissiveIntensity = 0.04;
 
-  bloomPass.strength = 0.56;
-  bloomPass.radius = 0.48;
+  bloomPass.strength = 0.58;
+  bloomPass.radius = 0.42;
   bloomPass.threshold = 0.84;
 
-  chargeLight.intensity = 1.2;
+  chargeLight.intensity = 1.4;
   chargeLight.distance = 9;
   contactLight.intensity = 0;
-  contactLight.distance = 5;
+  contactLight.distance = 6;
 
   instruction.textContent = "Bring the ring to the battery";
 });
@@ -973,18 +960,18 @@ function animate() {
   updateCharge();
 
   const chargeLevel = charge / 100;
-  const targetZ = 9.5 - chargeLevel * 0.32 - attractionLevel * 0.08;
-  camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetZ, 0.035);
+  const targetZ = 10.6 - chargeLevel * 0.22 - attractionLevel * 0.05;
+  camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetZ, 0.03);
 
   battery.position.y =
-    -0.18 + Math.sin(time * 0.85) * 0.007;
+    -0.28 + Math.sin(time * 0.85) * 0.006;
 
-  const idlePulse = 1 + Math.sin(time * 2.2) * 0.01;
+  const idlePulse = 1 + Math.sin(time * 2.2) * 0.008;
 
   if (!isHolding && charge < 2) {
     batteryLens.scale.setScalar(idlePulse);
     ringFace.scale.setScalar(
-      1 + Math.sin(time * 2.7) * 0.006
+      1 + Math.sin(time * 2.7) * 0.004
     );
   }
 
