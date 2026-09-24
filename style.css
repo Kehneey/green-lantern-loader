@@ -1,13 +1,18 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
 * { box-sizing: border-box; }
-html, body { width: 100%; height: 100%; margin: 0; }
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
 
 :root {
   --green: #38ff7f;
   --green-soft: #9dffbb;
   --green-white: #effff4;
-  --ink: #010302;
 }
 
 body {
@@ -18,7 +23,9 @@ body {
   font-family: "Inter", sans-serif;
 }
 
-button { font: inherit; }
+button {
+  font: inherit;
+}
 
 .loader {
   position: relative;
@@ -43,6 +50,7 @@ button { font: inherit; }
   pointer-events: none;
   background: #000;
 }
+
 .loader::before { top: 0; }
 .loader::after { bottom: 0; }
 
@@ -111,7 +119,12 @@ button { font: inherit; }
   z-index: 10;
   pointer-events: none;
 }
-.three-stage canvas { display: block; width: 100%; height: 100%; }
+
+.three-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 
 .beam-layer {
   position: fixed;
@@ -121,18 +134,28 @@ button { font: inherit; }
   height: 100%;
   pointer-events: none;
 }
-.beam { opacity: 0; transition: opacity .12s ease; stroke-linecap: round; }
+
+.beam {
+  opacity: 0;
+  transition: opacity .12s ease;
+  stroke-linecap: round;
+}
+
+.beam.visible {
+  opacity: 1;
+}
+
 .beam-core {
   stroke: url(#beamGradient);
   stroke-width: 2.1;
   filter: url(#beamGlow);
 }
+
 .beam-blur {
   stroke: rgba(76,255,133,.26);
   stroke-width: 12;
   filter: blur(7px);
 }
-.beam.visible { opacity: 1; }
 
 .particles,
 .dust {
@@ -140,6 +163,7 @@ button { font: inherit; }
   inset: 0;
   pointer-events: none;
 }
+
 .particles { z-index: 20; }
 .dust { z-index: 3; }
 
@@ -152,6 +176,7 @@ button { font: inherit; }
   box-shadow: 0 0 7px rgba(118,255,166,.8), 0 0 14px rgba(0,255,102,.4);
   animation: particleTravel var(--duration) cubic-bezier(.2,.7,.4,1) forwards;
 }
+
 @keyframes particleTravel {
   0% { opacity: 0; transform: translate(0,0) scale(.5); }
   15%, 72% { opacity: 1; }
@@ -167,6 +192,7 @@ button { font: inherit; }
   box-shadow: 0 0 9px rgba(0,255,102,.11);
   animation: dustDrift var(--duration) ease-in-out infinite alternate;
 }
+
 @keyframes dustDrift {
   from { opacity: .04; transform: translate(0,0); }
   to { opacity: .34; transform: translate(var(--dx), var(--dy)); }
@@ -189,9 +215,9 @@ button { font: inherit; }
 .oath {
   position: absolute;
   left: 50%;
-  top: 8.5%;
+  top: 10.5%;
   z-index: 25;
-  width: min(980px, 90vw);
+  width: min(760px, 72vw);
   transform: translateX(-50%);
   text-align: center;
   pointer-events: none;
@@ -199,6 +225,8 @@ button { font: inherit; }
 
 .oath-line {
   margin: 0;
+  display: grid;
+  justify-items: center;
   opacity: 0;
   transform: translateY(18px) scale(.99);
   filter: blur(10px);
@@ -208,32 +236,38 @@ button { font: inherit; }
     filter .55s ease;
 }
 
-.oath-line + .oath-line { margin-top: 11px; }
+.oath-line + .oath-line {
+  margin-top: 14px;
+}
 
 .oath-line span,
-.oath-line strong { display: block; }
+.oath-line strong {
+  display: block;
+  text-align: center;
+}
 
 .oath-line span {
-  color: rgba(174,238,195,.36);
-  font-size: clamp(8px, .6vw, 11px);
+  color: rgba(174,238,195,.38);
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: .38em;
+  letter-spacing: .34em;
   text-transform: uppercase;
 }
 
 .oath-line strong {
-  margin-top: 3px;
+  margin-top: 4px;
+  max-width: 18ch;
   color: rgba(231,255,239,.58);
-  font-size: clamp(18px, 1.8vw, 30px);
+  font-size: clamp(18px, 1.75vw, 28px);
   font-weight: 700;
-  line-height: 1;
-  letter-spacing: -.035em;
+  line-height: 1.02;
+  letter-spacing: -.03em;
   text-transform: uppercase;
-  text-shadow: 0 0 22px rgba(0,255,102,.08);
+  text-shadow: 0 0 18px rgba(0,255,102,.08);
 }
 
 .oath-line.visible {
-  opacity: .28;
+  opacity: .24;
   transform: translateY(0) scale(1);
   filter: blur(0);
 }
@@ -243,42 +277,28 @@ button { font: inherit; }
 }
 
 .oath-line.active span {
-  color: rgba(204,255,219,.7);
+  color: rgba(204,255,219,.72);
 }
 
 .oath-line.active strong {
   color: #effff4;
   text-shadow:
     0 0 8px rgba(239,255,244,.18),
-    0 0 22px rgba(0,255,102,.22),
-    0 0 55px rgba(0,255,102,.08);
-  animation: lineImpact .8s cubic-bezier(.2,.72,.2,1) both;
+    0 0 24px rgba(0,255,102,.18),
+    0 0 52px rgba(0,255,102,.08);
 }
 
 .final-oath-line strong {
-  font-size: clamp(27px, 3.15vw, 54px);
-  color: rgba(157,255,187,.62);
-  letter-spacing: -.05em;
-}
-
-.final-oath-line.active strong {
-  color: #a8ffc3;
-  text-shadow:
-    0 0 8px rgba(240,255,245,.4),
-    0 0 22px rgba(94,255,145,.48),
-    0 0 68px rgba(0,255,102,.18);
-}
-
-@keyframes lineImpact {
-  0% { opacity: .2; transform: translateY(9px) scale(.985); letter-spacing: -.02em; }
-  60% { opacity: 1; transform: translateY(0) scale(1.015); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  max-width: 20ch;
+  font-size: clamp(26px, 2.6vw, 44px);
+  color: rgba(157,255,187,.66);
+  letter-spacing: -.045em;
 }
 
 .instruction {
   position: absolute;
   left: 50%;
-  bottom: 7.2%;
+  bottom: 8.4%;
   z-index: 30;
   transform: translateX(-50%);
   color: rgba(214,255,225,.48);
@@ -288,7 +308,6 @@ button { font: inherit; }
   text-transform: uppercase;
   text-align: center;
   white-space: nowrap;
-  transition: color .2s ease;
 }
 
 .charge-ui {
@@ -304,7 +323,11 @@ button { font: inherit; }
   letter-spacing: .18em;
   text-transform: uppercase;
 }
-.charge-ui span { opacity: .5; }
+
+.charge-ui span {
+  opacity: .5;
+}
+
 .charge-ui strong {
   color: rgba(233,255,240,.72);
   font-size: 12px;
@@ -323,8 +346,12 @@ button { font: inherit; }
   text-transform: uppercase;
   transition: opacity .3s ease;
 }
+
 .model-status.ready { opacity: 0; }
-.model-status.error { color: #ff9b9b; opacity: 1; }
+.model-status.error {
+  color: #ff9b9b;
+  opacity: 1;
+}
 
 .flash {
   position: absolute;
@@ -335,7 +362,11 @@ button { font: inherit; }
   background:
     radial-gradient(circle at 50% 50%, rgba(238,255,244,.95) 0%, rgba(92,255,146,.32) 20%, rgba(0,255,102,0) 58%);
 }
-.flash.fire { animation: flashExpansion 1.15s cubic-bezier(.15,.65,.25,1) forwards; }
+
+.flash.fire {
+  animation: flashExpansion 1.15s cubic-bezier(.15,.65,.25,1) forwards;
+}
+
 @keyframes flashExpansion {
   0% { opacity: 0; transform: scale(.7); }
   28% { opacity: 1; transform: scale(1); }
@@ -357,13 +388,18 @@ button { font: inherit; }
   visibility: hidden;
   transition: opacity .65s ease;
 }
-.reveal.visible { opacity: 1; visibility: visible; }
+
+.reveal.visible {
+  opacity: 1;
+  visibility: visible;
+}
 
 .reveal-inner {
   opacity: 0;
   transform: translateY(16px) scale(.975);
   transition: opacity .75s ease .16s, transform .75s cubic-bezier(.2,.72,.2,1) .16s;
 }
+
 .reveal.visible .reveal-inner {
   opacity: 1;
   transform: translateY(0) scale(1);
@@ -375,6 +411,7 @@ button { font: inherit; }
   font-weight: 700;
   letter-spacing: .38em;
 }
+
 .reveal h1 {
   margin: 8px 0 15px;
   color: #f1fff5;
@@ -383,11 +420,13 @@ button { font: inherit; }
   letter-spacing: -.08em;
   text-shadow: 0 0 38px rgba(0,255,102,.18);
 }
+
 .reveal p {
   margin: 0;
   color: rgba(220,255,232,.5);
   font-size: 13px;
 }
+
 .reveal button {
   margin-top: 28px;
   padding: 11px 20px;
@@ -398,6 +437,7 @@ button { font: inherit; }
   cursor: pointer;
   transition: .2s ease;
 }
+
 .reveal button:hover {
   color: #03200e;
   background: #53ff8d;
@@ -406,10 +446,34 @@ button { font: inherit; }
 
 @media (max-width: 700px) {
   .cinematic-kicker { display: none; }
-  .oath { top: 7%; width: 92vw; }
-  .oath-line strong { font-size: clamp(17px, 5.2vw, 27px); }
-  .final-oath-line strong { font-size: clamp(24px, 7vw, 36px); }
-  .charge-ui { right: 18px; bottom: 46px; }
-  .model-status { left: 18px; bottom: 46px; }
-  .instruction { bottom: 10%; width: 100%; padding: 0 18px; white-space: normal; }
+
+  .oath {
+    top: 8%;
+    width: 90vw;
+  }
+
+  .oath-line strong {
+    font-size: clamp(17px, 5.2vw, 27px);
+  }
+
+  .final-oath-line strong {
+    font-size: clamp(24px, 7vw, 36px);
+  }
+
+  .charge-ui {
+    right: 18px;
+    bottom: 46px;
+  }
+
+  .model-status {
+    left: 18px;
+    bottom: 46px;
+  }
+
+  .instruction {
+    bottom: 10%;
+    width: 100%;
+    padding: 0 18px;
+    white-space: normal;
+  }
 }
