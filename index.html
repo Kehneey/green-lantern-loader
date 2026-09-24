@@ -1,95 +1,101 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Green Lantern Loader Test</title>
-  <meta name="description" content="Interactive Green Lantern-inspired charging loader using Three.js and 3D GLB models." />
-  <link rel="stylesheet" href="./style.css" />
-</head>
-<body>
-  <main class="loader" id="loader">
-    <div class="background"></div>
-    <div class="ambient" id="ambient"></div>
-    <div class="floor-glow" id="floorGlow"></div>
-    <div class="dust" id="dust"></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Green Lantern Loader</title>
+    <link rel="stylesheet" href="style.css" />
 
-    <div class="three-stage" id="threeStage"></div>
-
-    <svg class="beam-layer" aria-hidden="true">
-      <defs>
-        <linearGradient id="beamGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#effff4" />
-          <stop offset="30%" stop-color="#8cffac" />
-          <stop offset="70%" stop-color="#29ff78" />
-          <stop offset="100%" stop-color="#00e85b" />
-        </linearGradient>
-        <filter id="beamGlow" x="-100%" y="-100%" width="300%" height="300%">
-          <feGaussianBlur stdDeviation="7" result="blur" />
-          <feMerge>
-            <feMergeNode in="blur" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
-      </defs>
-      <line id="beamBlur" class="beam beam-blur" x1="0" y1="0" x2="0" y2="0" />
-      <line id="beam" class="beam beam-core" x1="0" y1="0" x2="0" y2="0" />
-    </svg>
-
-    <div class="particles" id="particles"></div>
-
-    <section class="oath" aria-live="polite">
-      <p class="oath-line oath-line-one">
-        <span>IN BRIGHTEST DAY,</span>
-        <strong>IN BLACKEST NIGHT,</strong>
-      </p>
-
-      <p class="oath-line oath-line-two">
-        <span>NO EVIL SHALL</span>
-        <strong>ESCAPE MY SIGHT.</strong>
-      </p>
-
-      <p class="oath-line oath-line-three">
-        <span>LET THOSE WHO WORSHIP</span>
-        <strong>EVIL'S MIGHT,</strong>
-      </p>
-
-      <p class="oath-line final-oath-line">
-        <span>BEWARE MY POWER...</span>
-        <strong>GREEN LANTERN'S LIGHT!</strong>
-      </p>
-    </section>
-
-    <div class="cinematic-kicker">O.A. ENERGY LINK // SECTOR 2814</div>
-    <div class="instruction" id="instruction">Bring the ring to the battery</div>
-
-    <div class="charge-ui">
-      <span>CHARGE</span>
-      <strong id="progressText">0%</strong>
-    </div>
-
-    <div class="model-status" id="modelStatus">Loading 3D models…</div>
-
-    <div class="flash" id="flash"></div>
-
-    <section class="reveal" id="reveal">
-      <div class="reveal-inner">
-        <span>POWER BATTERY // FULL OUTPUT</span>
-        <h1>CHARGED.</h1>
-        <p>Will synchronized. Energy transfer complete.</p>
-        <button id="restart" type="button">Recharge</button>
-      </div>
-    </section>
-  </main>
-
-  <script type="importmap">
-    {
-      "imports": {
-        "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.167.1/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.167.1/examples/jsm/"
+        }
       }
-    }
-  </script>
-  <script type="module" src="./script.js"></script>
-</body>
+    </script>
+  </head>
+  <body>
+    <main class="loader">
+      <div class="background"></div>
+      <div class="ambient" id="ambient"></div>
+      <div class="floor-glow" id="floorGlow"></div>
+
+      <div class="dust" id="dust"></div>
+      <div class="particles" id="particles"></div>
+
+      <div class="cinematic-kicker">O.A. ENERGY LINK // SECTOR 2814</div>
+
+      <section class="oath" aria-live="polite">
+        <p class="oath-line oath-line-one">
+          <span>IN BRIGHTEST DAY,</span>
+          <strong>IN BLACKEST NIGHT,</strong>
+        </p>
+
+        <p class="oath-line oath-line-two">
+          <span>NO EVIL SHALL</span>
+          <strong>ESCAPE MY SIGHT.</strong>
+        </p>
+
+        <p class="oath-line oath-line-three">
+          <span>LET THOSE WHO WORSHIP</span>
+          <strong>EVIL'S MIGHT,</strong>
+        </p>
+
+        <p class="oath-line final-oath-line">
+          <span>BEWARE MY POWER...</span>
+          <strong>GREEN LANTERN'S LIGHT!</strong>
+        </p>
+      </section>
+
+      <svg class="beam-layer" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="beamGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="rgba(160,255,196,0.02)"></stop>
+            <stop offset="30%" stop-color="rgba(124,255,170,0.48)"></stop>
+            <stop offset="70%" stop-color="rgba(200,255,221,0.88)"></stop>
+            <stop offset="100%" stop-color="rgba(90,255,145,0.08)"></stop>
+          </linearGradient>
+
+          <filter id="beamGlow">
+            <feGaussianBlur stdDeviation="3.2" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+
+        <line id="beamBlur" class="beam beam-blur" x1="0" y1="0" x2="0" y2="0"></line>
+        <line id="beam" class="beam beam-core" x1="0" y1="0" x2="0" y2="0"></line>
+      </svg>
+
+      <div class="three-stage" id="threeStage"></div>
+
+      <div class="instruction" id="instruction">Bring the ring to the battery</div>
+
+      <div class="model-status" id="modelStatus">Scene readying…</div>
+
+      <div class="charge-ui">
+        <span>Charge</span>
+        <strong id="progressText">0%</strong>
+      </div>
+
+      <div class="flash" id="flash"></div>
+
+      <section class="reveal" id="reveal" aria-hidden="true">
+        <div class="reveal-inner">
+          <span>POWER BATTERY // FULL OUTPUT</span>
+          <h1>CHARGED.</h1>
+          <p>Will synchronized. Energy transfer complete.</p>
+          <button id="restart">Recharge</button>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="script.js"></script>
+  </body>
 </html>
