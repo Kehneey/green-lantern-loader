@@ -49,6 +49,7 @@ let charge = 0;
 let attractionLevel = 0;
 
 const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x020604, 0.026);
 
 const camera = new THREE.PerspectiveCamera(
   32,
@@ -80,9 +81,9 @@ composer.addPass(new RenderPass(scene, camera));
 
 const bloomPass = new UnrealBloomPass(
   new THREE.Vector2(window.innerWidth, window.innerHeight),
-  0.78,
-  0.42,
-  0.74
+  0.56,
+  0.48,
+  0.84
 );
 composer.addPass(bloomPass);
 
@@ -157,206 +158,192 @@ function createBattery() {
   const group = new THREE.Group();
 
   const shell = physicalMaterial({
-    color: 0x0f2d1d,
-    emissive: 0x04160d,
-    emissiveIntensity: 0.18,
-    metalness: 0.58,
-    roughness: 0.3
+    color: 0x0d2a1a,
+    emissive: 0x04140c,
+    emissiveIntensity: 0.14,
+    metalness: 0.62,
+    roughness: 0.26
   });
 
   const trim = physicalMaterial({
-    color: 0x1f5b39,
-    emissive: 0x082b18,
-    emissiveIntensity: 0.24,
-    metalness: 0.68,
-    roughness: 0.24
+    color: 0x1c6139,
+    emissive: 0x072717,
+    emissiveIntensity: 0.2,
+    metalness: 0.7,
+    roughness: 0.22
   });
 
   const darkMetal = physicalMaterial({
-    color: 0x07150e,
-    emissive: 0x020805,
-    emissiveIntensity: 0.08,
-    metalness: 0.72,
-    roughness: 0.32
+    color: 0x06120c,
+    emissive: 0x010704,
+    emissiveIntensity: 0.04,
+    metalness: 0.82,
+    roughness: 0.3
   });
 
-  const luminous = physicalMaterial({
-    color: 0x19c95a,
-    emissive: 0x00ff66,
-    emissiveIntensity: 0.72,
-    metalness: 0.08,
-    roughness: 0.24,
-    transparent: true,
-    opacity: 0.32
-  });
+  const energyMat = glowMaterial(0x5dff94, 0.68);
 
-  /* faceted main housing: deliberately not spherical */
-  batteryBody = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.04, 1.04, 1.92, 12, 1, false),
-    shell
-  );
-  batteryBody.rotation.x = Math.PI / 2;
+  batteryAccentMeshes = [];
+
+  /* main lantern silhouette using a lathed profile */
+  const bodyProfile = [
+    new THREE.Vector2(0.72, -1.16),
+    new THREE.Vector2(0.9, -1.03),
+    new THREE.Vector2(1.02, -0.72),
+    new THREE.Vector2(1.08, -0.26),
+    new THREE.Vector2(1.08, 0.3),
+    new THREE.Vector2(1.0, 0.74),
+    new THREE.Vector2(0.86, 1.02),
+    new THREE.Vector2(0.7, 1.16)
+  ];
+
+  const bodyGeo = new THREE.LatheGeometry(bodyProfile, 48);
+  bodyGeo.rotateX(Math.PI / 2);
+
+  batteryBody = new THREE.Mesh(bodyGeo, shell);
   group.add(batteryBody);
 
-  /* front and rear collars */
-  const frontCollar = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.09, 1.09, 0.16, 12),
+  const upperShoulder = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.7, 0.86, 0.28, 36),
     trim
   );
-  frontCollar.rotation.x = Math.PI / 2;
-  frontCollar.position.z = 0.97;
-  group.add(frontCollar);
-
-  const rearCollar = frontCollar.clone();
-  rearCollar.position.z = -0.97;
-  group.add(rearCollar);
-
-  /* shoulders and neck */
-  const shoulder = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.7, 0.98, 0.36, 12),
-    shell
-  );
-  shoulder.position.y = 1.08;
-  group.add(shoulder);
+  upperShoulder.position.y = 1.22;
+  group.add(upperShoulder);
 
   const neck = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.58, 0.58, 0.58, 12),
+    new THREE.CylinderGeometry(0.54, 0.54, 0.58, 36),
     darkMetal
   );
-  neck.position.y = 1.53;
+  neck.position.y = 1.63;
   group.add(neck);
 
   const upperCap = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.86, 0.7, 0.26, 12),
+    new THREE.CylinderGeometry(0.82, 0.68, 0.22, 36),
     trim
   );
-  upperCap.position.y = 1.94;
+  upperCap.position.y = 2.02;
   group.add(upperCap);
 
-  /* base */
   const lowerShoulder = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.82, 0.98, 0.3, 12),
-    shell
+    new THREE.CylinderGeometry(0.76, 0.92, 0.24, 36),
+    trim
   );
-  lowerShoulder.position.y = -1.12;
+  lowerShoulder.position.y = -1.23;
   group.add(lowerShoulder);
 
   const base = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.76, 0.98, 0.54, 12),
+    new THREE.CylinderGeometry(0.76, 0.93, 0.5, 36),
     darkMetal
   );
-  base.position.y = -1.5;
+  base.position.y = -1.55;
   group.add(base);
 
   const baseTrim = new THREE.Mesh(
-    new THREE.CylinderGeometry(1.0, 1.0, 0.12, 12),
+    new THREE.CylinderGeometry(0.98, 0.98, 0.1, 36),
     trim
   );
-  baseTrim.position.y = -1.84;
+  baseTrim.position.y = -1.86;
   group.add(baseTrim);
 
-  /* hard rectangular handle */
+  /* sculpted rectangular handle */
   const handleMat = physicalMaterial({
-    color: 0x0c2417,
-    emissive: 0x031008,
-    emissiveIntensity: 0.12,
-    metalness: 0.7,
-    roughness: 0.28
+    color: 0x0a2115,
+    emissive: 0x020d07,
+    emissiveIntensity: 0.08,
+    metalness: 0.78,
+    roughness: 0.25
   });
 
-  const topBar = new THREE.Mesh(
-    new THREE.BoxGeometry(1.55, 0.16, 0.2),
+  const handleCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-0.67, 2.03, 0),
+    new THREE.Vector3(-0.67, 2.5, 0),
+    new THREE.Vector3(0, 2.72, 0),
+    new THREE.Vector3(0.67, 2.5, 0),
+    new THREE.Vector3(0.67, 2.03, 0)
+  ]);
+
+  const handle = new THREE.Mesh(
+    new THREE.TubeGeometry(handleCurve, 48, 0.075, 10, false),
     handleMat
   );
-  topBar.position.y = 2.58;
+  group.add(handle);
 
-  const leftBar = new THREE.Mesh(
-    new THREE.BoxGeometry(0.16, 1.15, 0.2),
-    handleMat
-  );
-  leftBar.position.set(-0.7, 2.08, 0);
-
-  const rightBar = leftBar.clone();
-  rightBar.position.x = 0.7;
-
-  group.add(topBar, leftBar, rightBar);
-
-  /* angular side energy housings */
+  /* side housings */
   for (const side of [-1, 1]) {
     const housing = new THREE.Mesh(
-      new THREE.BoxGeometry(0.5, 0.72, 0.58),
+      new THREE.BoxGeometry(0.38, 0.7, 0.46),
       trim
     );
-    housing.position.set(side * 1.24, 0, 0.03);
+    housing.position.set(side * 1.18, 0, 0.03);
     housing.rotation.z = side * THREE.MathUtils.degToRad(-8);
     group.add(housing);
 
     const energyPanel = new THREE.Mesh(
-      new THREE.BoxGeometry(0.34, 0.56, 0.08),
-      luminous.clone()
+      new THREE.PlaneGeometry(0.24, 0.46),
+      energyMat.clone()
     );
-    energyPanel.position.set(side * 1.24, 0, 0.36);
+    energyPanel.position.set(side * 1.18, 0, 0.27);
     energyPanel.rotation.z = side * THREE.MathUtils.degToRad(-8);
     group.add(energyPanel);
+
     batteryAccentMeshes.push(energyPanel);
   }
 
   /* front lens assembly */
   const lensHousing = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.62, 0.62, 0.16, 48),
+    new THREE.CylinderGeometry(0.6, 0.6, 0.16, 64),
     darkMetal
   );
   lensHousing.rotation.x = Math.PI / 2;
-  lensHousing.position.z = 1.03;
+  lensHousing.position.z = 1.09;
   group.add(lensHousing);
 
   const lensBezel = new THREE.Mesh(
-    new THREE.RingGeometry(0.42, 0.56, 64),
+    new THREE.RingGeometry(0.39, 0.53, 72),
     new THREE.MeshStandardMaterial({
-      color: 0x2d7c4a,
-      emissive: 0x0a4723,
-      emissiveIntensity: 0.34,
-      metalness: 0.48,
-      roughness: 0.24,
+      color: 0x2b7a49,
+      emissive: 0x0a3c21,
+      emissiveIntensity: 0.2,
+      metalness: 0.5,
+      roughness: 0.18,
       side: THREE.DoubleSide
     })
   );
-  lensBezel.position.z = 1.125;
+  lensBezel.position.z = 1.18;
   group.add(lensBezel);
 
   batteryLens = new THREE.Mesh(
-    new THREE.CircleGeometry(0.4, 64),
-    glowMaterial(0x56ff91, 0.82)
+    new THREE.CircleGeometry(0.36, 72),
+    glowMaterial(0x91ffb6, 0.7)
   );
-  batteryLens.position.z = 1.13;
+  batteryLens.position.z = 1.19;
   group.add(batteryLens);
 
   batteryLensHalo = new THREE.Mesh(
-    new THREE.RingGeometry(0.41, 0.5, 64),
-    glowMaterial(0x18ff67, 0.12)
+    new THREE.RingGeometry(0.37, 0.48, 72),
+    glowMaterial(0x1fff6a, 0.07)
   );
-  batteryLensHalo.position.z = 1.12;
+  batteryLensHalo.position.z = 1.185;
   group.add(batteryLensHalo);
 
-  /* recessed internal light, kept behind the front face */
   batteryInner = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.44, 0.44, 0.22, 48),
+    new THREE.CylinderGeometry(0.38, 0.38, 0.14, 64),
     physicalMaterial({
-      color: 0x0fc957,
+      color: 0x11c855,
       emissive: 0x00ff66,
-      emissiveIntensity: 0.58,
+      emissiveIntensity: 0.34,
       metalness: 0,
-      roughness: 0.3,
+      roughness: 0.28,
       transparent: true,
-      opacity: 0.09
+      opacity: 0.05
     })
   );
   batteryInner.rotation.x = Math.PI / 2;
-  batteryInner.position.z = 0.94;
+  batteryInner.position.z = 1.02;
   group.add(batteryInner);
 
-  group.position.set(0, -0.12, 0);
-  group.scale.setScalar(0.78);
+  group.position.set(0, -0.16, 0);
+  group.scale.setScalar(0.8);
 
   scene.add(group);
   return group;
@@ -370,111 +357,104 @@ function createRing() {
   const group = new THREE.Group();
 
   const bandMaterial = physicalMaterial({
-    color: 0x102419,
-    emissive: 0x030b07,
-    emissiveIntensity: 0.08,
-    metalness: 0.82,
-    roughness: 0.2
+    color: 0x0d2016,
+    emissive: 0x020805,
+    emissiveIntensity: 0.05,
+    metalness: 0.9,
+    roughness: 0.16
   });
 
   const crownMaterial = physicalMaterial({
-    color: 0x1c5f36,
-    emissive: 0x082817,
-    emissiveIntensity: 0.22,
-    metalness: 0.68,
-    roughness: 0.18
+    color: 0x1b5a34,
+    emissive: 0x072416,
+    emissiveIntensity: 0.14,
+    metalness: 0.72,
+    roughness: 0.16
   });
 
-  /* true shank: smaller cross-section, more jewelry-like */
   ringBand = new THREE.Mesh(
-    new THREE.TorusGeometry(0.34, 0.055, 20, 72),
+    new THREE.TorusGeometry(0.33, 0.045, 28, 112),
     bandMaterial
   );
   group.add(ringBand);
 
-  /* shoulders that taper into the crown */
-  const leftShoulder = new THREE.Mesh(
-    new THREE.BoxGeometry(0.18, 0.12, 0.12),
+  const crown = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.15, 0.19, 0.085, 48),
     crownMaterial
   );
-  leftShoulder.position.set(-0.19, 0, 0.08);
+  crown.rotation.x = Math.PI / 2;
+  crown.position.z = 0.095;
+  group.add(crown);
+
+  const leftShoulder = new THREE.Mesh(
+    new THREE.BoxGeometry(0.16, 0.1, 0.1),
+    crownMaterial
+  );
+  leftShoulder.position.set(-0.17, 0, 0.07);
   leftShoulder.rotation.z = THREE.MathUtils.degToRad(18);
 
   const rightShoulder = leftShoulder.clone();
-  rightShoulder.position.x = 0.19;
+  rightShoulder.position.x = 0.17;
   rightShoulder.rotation.z = THREE.MathUtils.degToRad(-18);
 
   group.add(leftShoulder, rightShoulder);
 
-  /* raised signet crown */
-  const crown = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.17, 0.2, 0.1, 32),
-    crownMaterial
-  );
-  crown.rotation.x = Math.PI / 2;
-  crown.position.z = 0.11;
-  group.add(crown);
-
   const bezel = new THREE.Mesh(
-    new THREE.RingGeometry(0.11, 0.155, 40),
+    new THREE.RingGeometry(0.1, 0.14, 56),
     new THREE.MeshStandardMaterial({
-      color: 0x32a75b,
-      emissive: 0x0c3c20,
-      emissiveIntensity: 0.26,
-      metalness: 0.5,
-      roughness: 0.2,
+      color: 0x32a85c,
+      emissive: 0x0a351d,
+      emissiveIntensity: 0.16,
+      metalness: 0.58,
+      roughness: 0.16,
       side: THREE.DoubleSide
     })
   );
-  bezel.position.z = 0.17;
+  bezel.position.z = 0.15;
   group.add(bezel);
 
   ringFace = new THREE.Mesh(
-    new THREE.CircleGeometry(0.105, 48),
-    glowMaterial(0x54ff8b, 0.82)
+    new THREE.CircleGeometry(0.095, 56),
+    glowMaterial(0x8cffb2, 0.72)
   );
-  ringFace.position.z = 0.176;
+  ringFace.position.z = 0.157;
   group.add(ringFace);
 
   ringFaceHalo = new THREE.Mesh(
-    new THREE.RingGeometry(0.11, 0.145, 48),
-    glowMaterial(0x12ff62, 0.08)
+    new THREE.RingGeometry(0.098, 0.135, 56),
+    glowMaterial(0x16ff66, 0.05)
   );
-  ringFaceHalo.position.z = 0.172;
+  ringFaceHalo.position.z = 0.154;
   group.add(ringFaceHalo);
 
   const emblemMaterial = new THREE.MeshBasicMaterial({
-    color: 0x061d0d,
+    color: 0x071d0d,
     toneMapped: false,
     side: THREE.DoubleSide
   });
 
   const emblemCircle = new THREE.Mesh(
-    new THREE.RingGeometry(0.03, 0.047, 32),
+    new THREE.RingGeometry(0.029, 0.044, 40),
     emblemMaterial
   );
-  emblemCircle.position.z = 0.181;
+  emblemCircle.position.z = 0.162;
 
   const topLine = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.095, 0.012),
+    new THREE.PlaneGeometry(0.086, 0.01),
     emblemMaterial
   );
-  topLine.position.set(0, 0.057, 0.183);
+  topLine.position.set(0, 0.052, 0.164);
 
   const bottomLine = topLine.clone();
-  bottomLine.position.y = -0.057;
+  bottomLine.position.y = -0.052;
 
   group.add(emblemCircle, topLine, bottomLine);
 
-  ringAccentMeshes.push(ringFace, ringFaceHalo);
-
-  group.scale.setScalar(0.74);
-
-  /* reveal the shank depth so it reads as a ring, not a button */
+  group.scale.setScalar(0.76);
   group.rotation.set(
-    THREE.MathUtils.degToRad(18),
-    THREE.MathUtils.degToRad(-28),
-    THREE.MathUtils.degToRad(-14)
+    THREE.MathUtils.degToRad(15),
+    THREE.MathUtils.degToRad(-24),
+    THREE.MathUtils.degToRad(-13)
   );
 
   scene.add(group);
@@ -622,7 +602,7 @@ function updateRing(time) {
     instruction.textContent = isSnapped
       ? "Press and hold to charge"
       : isNearBattery
-        ? "The battery is drawing the ring in"
+        ? "Energy lock acquired"
         : "Bring the ring to the battery";
   }
 }
@@ -756,11 +736,11 @@ function updateEnergyVisuals() {
     5 + proximity * 0.8 + chargeLevel * 1.6;
 
   bloomPass.strength =
-    0.62 + proximity * 0.12 + chargeLevel * 0.34;
+    0.56 + proximity * 0.08 + chargeLevel * 0.24;
   bloomPass.radius =
-    0.32 + chargeLevel * 0.05;
+    0.48 + chargeLevel * 0.03;
   bloomPass.threshold =
-    0.82 - chargeLevel * 0.04;
+    0.84 - chargeLevel * 0.025;
 
   ambient.style.opacity = String(
     0.11 + proximity * 0.06 + chargeLevel * 0.18
@@ -779,7 +759,7 @@ function updateEnergyVisuals() {
     battery.rotation.z *= 0.84;
   }
 
-  const thresholds = [14, 43, 72];
+  const thresholds = [10, 32, 56, 78];
 
   oathLines.forEach((line, index) => {
     const visible = charge >= thresholds[index];
@@ -909,9 +889,9 @@ function finishCharge() {
   chargeLight.intensity = 5.8;
   contactLight.intensity = 4.4;
 
-  bloomPass.strength = 0.94;
-  bloomPass.radius = 0.38;
-  bloomPass.threshold = 0.76;
+  bloomPass.strength = 0.88;
+  bloomPass.radius = 0.52;
+  bloomPass.threshold = 0.8;
 
   setTimeout(() => {
     flash.classList.add("fire");
@@ -952,9 +932,9 @@ restart.addEventListener("click", () => {
 
   ringBand.material.emissiveIntensity = 0.14;
 
-  bloomPass.strength = 0.62;
-  bloomPass.radius = 0.32;
-  bloomPass.threshold = 0.82;
+  bloomPass.strength = 0.56;
+  bloomPass.radius = 0.48;
+  bloomPass.threshold = 0.84;
 
   chargeLight.intensity = 1.2;
   chargeLight.distance = 9;
@@ -991,6 +971,10 @@ function animate() {
   updateRing(time);
   updateBeam();
   updateCharge();
+
+  const chargeLevel = charge / 100;
+  const targetZ = 9.5 - chargeLevel * 0.32 - attractionLevel * 0.08;
+  camera.position.z = THREE.MathUtils.lerp(camera.position.z, targetZ, 0.035);
 
   battery.position.y =
     -0.18 + Math.sin(time * 0.85) * 0.007;
