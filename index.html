@@ -1,101 +1,1033 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0"
-    />
-    <title>Green Lantern Loader</title>
-    <link rel="stylesheet" href="style.css" />
+<head>
+  <meta charset="UTF-8" />
 
-    <script type="importmap">
-      {
-        "imports": {
-          "three": "https://unpkg.com/three@0.167.1/build/three.module.js",
-          "three/addons/": "https://unpkg.com/three@0.167.1/examples/jsm/"
-        }
-      }
-    </script>
-  </head>
-  <body>
-    <main class="loader">
-      <div class="background"></div>
-      <div class="ambient" id="ambient"></div>
-      <div class="floor-glow" id="floorGlow"></div>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
 
-      <div class="dust" id="dust"></div>
-      <div class="particles" id="particles"></div>
+  <title>Green Lantern Energy Loader</title>
 
-      <div class="cinematic-kicker">O.A. ENERGY LINK // SECTOR 2814</div>
+  <link rel="stylesheet" href="./style.css" />
+</head>
 
-      <section class="oath" aria-live="polite">
-        <p class="oath-line oath-line-one">
-          <span>IN BRIGHTEST DAY,</span>
-          <strong>IN BLACKEST NIGHT,</strong>
-        </p>
+<body>
 
-        <p class="oath-line oath-line-two">
-          <span>NO EVIL SHALL</span>
-          <strong>ESCAPE MY SIGHT.</strong>
-        </p>
+  <main class="loader" id="loader">
 
-        <p class="oath-line oath-line-three">
-          <span>LET THOSE WHO WORSHIP</span>
-          <strong>EVIL'S MIGHT,</strong>
-        </p>
+    <!-- =====================================================
+         CINEMATIC ENVIRONMENT
+    ====================================================== -->
 
-        <p class="oath-line final-oath-line">
-          <span>BEWARE MY POWER...</span>
-          <strong>GREEN LANTERN'S LIGHT!</strong>
-        </p>
-      </section>
+    <div class="background-noise"></div>
 
-      <svg class="beam-layer" viewBox="0 0 100 100" preserveAspectRatio="none">
+    <div class="ambient" id="ambient"></div>
+
+    <div class="floor-glow" id="floorGlow"></div>
+
+    <div class="dust" id="dust"></div>
+
+    <div class="particles" id="particles"></div>
+
+
+    <!-- =====================================================
+         ENERGY BEAM
+    ====================================================== -->
+
+    <svg
+      class="beam-layer"
+      id="beamLayer"
+      aria-hidden="true"
+    >
+
+      <defs>
+
+        <linearGradient
+          id="beamGradient"
+          x1="0%"
+          y1="0%"
+          x2="100%"
+          y2="0%"
+        >
+          <stop
+            offset="0%"
+            stop-color="#eafff1"
+          />
+
+          <stop
+            offset="35%"
+            stop-color="#7dffac"
+          />
+
+          <stop
+            offset="100%"
+            stop-color="#00ff66"
+          />
+        </linearGradient>
+
+        <filter
+          id="beamGlow"
+          x="-100%"
+          y="-100%"
+          width="300%"
+          height="300%"
+        >
+
+          <feGaussianBlur
+            stdDeviation="4"
+            result="blur"
+          />
+
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+
+        </filter>
+
+      </defs>
+
+
+      <line
+        id="beamBlur"
+        class="beam beam-blur"
+        x1="0"
+        y1="0"
+        x2="0"
+        y2="0"
+      />
+
+      <line
+        id="beam"
+        class="beam beam-core"
+        x1="0"
+        y1="0"
+        x2="0"
+        y2="0"
+      />
+
+    </svg>
+
+
+    <!-- =====================================================
+         OATH
+    ====================================================== -->
+
+    <section
+      class="oath"
+      id="oath"
+      aria-live="polite"
+    >
+
+      <div class="oath-system">
+        O.A. ENERGY LINK&nbsp;&nbsp;//&nbsp;&nbsp;SECTOR 2814
+      </div>
+
+      <p class="oath-line">
+        In brightest day, in blackest night,
+      </p>
+
+      <p class="oath-line">
+        No evil shall escape my sight.
+      </p>
+
+      <p class="oath-line">
+        Let those who worship evil's might,
+      </p>
+
+      <p class="oath-line final-line">
+        Beware my power... Green Lantern's light!
+      </p>
+
+    </section>
+
+
+    <!-- =====================================================
+         LANTERN
+    ====================================================== -->
+
+    <section
+      class="lantern-wrap"
+      id="lanternWrap"
+    >
+
+      <div class="outer-aura"></div>
+
+      <div class="energy-rings">
+
+        <span></span>
+        <span></span>
+        <span></span>
+
+      </div>
+
+
+      <div
+        class="lantern"
+        id="lantern"
+      >
+
+        <!-- Back glow -->
+        <div
+          class="lantern-backlight"
+          aria-hidden="true"
+        ></div>
+
+
+        <!-- Actual lantern -->
+        <svg
+          class="lantern-svg"
+          viewBox="0 0 320 430"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+
+          <defs>
+
+            <!-- Metal -->
+            <linearGradient
+              id="metalGradient"
+              x1="0"
+              y1="0"
+              x2="1"
+              y2="1"
+            >
+
+              <stop
+                offset="0%"
+                stop-color="#26342b"
+              />
+
+              <stop
+                offset="28%"
+                stop-color="#101a14"
+              />
+
+              <stop
+                offset="58%"
+                stop-color="#07100b"
+              />
+
+              <stop
+                offset="100%"
+                stop-color="#020603"
+              />
+
+            </linearGradient>
+
+
+            <!-- Main body -->
+            <linearGradient
+              id="bodyGradient"
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
+
+              <stop
+                offset="0%"
+                stop-color="#14251b"
+              />
+
+              <stop
+                offset="45%"
+                stop-color="#08130c"
+              />
+
+              <stop
+                offset="100%"
+                stop-color="#020604"
+              />
+
+            </linearGradient>
+
+
+            <!-- Green metal -->
+            <linearGradient
+              id="greenMetal"
+              x1="0"
+              y1="0"
+              x2="1"
+              y2="1"
+            >
+
+              <stop
+                offset="0%"
+                stop-color="#1f7a43"
+              />
+
+              <stop
+                offset="35%"
+                stop-color="#0a351d"
+              />
+
+              <stop
+                offset="75%"
+                stop-color="#04150a"
+              />
+
+              <stop
+                offset="100%"
+                stop-color="#010603"
+              />
+
+            </linearGradient>
+
+
+            <!-- Glass -->
+            <radialGradient
+              id="glassGradient"
+              cx="50%"
+              cy="45%"
+              r="60%"
+            >
+
+              <stop
+                offset="0%"
+                stop-color="#effff4"
+                stop-opacity="0.95"
+              />
+
+              <stop
+                offset="12%"
+                stop-color="#c4ffd7"
+                stop-opacity="0.82"
+              />
+
+              <stop
+                offset="30%"
+                stop-color="#38ff7f"
+                stop-opacity="0.42"
+              />
+
+              <stop
+                offset="62%"
+                stop-color="#00c94f"
+                stop-opacity="0.12"
+              />
+
+              <stop
+                offset="100%"
+                stop-color="#001a09"
+                stop-opacity="0.02"
+              />
+
+            </radialGradient>
+
+
+            <!-- Metal shine -->
+            <linearGradient
+              id="metalShine"
+              x1="0"
+              y1="0"
+              x2="1"
+              y2="0"
+            >
+
+              <stop
+                offset="0%"
+                stop-color="#ffffff"
+                stop-opacity="0"
+              />
+
+              <stop
+                offset="45%"
+                stop-color="#ffffff"
+                stop-opacity="0.05"
+              />
+
+              <stop
+                offset="50%"
+                stop-color="#ffffff"
+                stop-opacity="0.45"
+              />
+
+              <stop
+                offset="56%"
+                stop-color="#ffffff"
+                stop-opacity="0.05"
+              />
+
+              <stop
+                offset="100%"
+                stop-color="#ffffff"
+                stop-opacity="0"
+              />
+
+            </linearGradient>
+
+
+            <!-- Symbol -->
+            <filter
+              id="symbolGlow"
+              x="-100%"
+              y="-100%"
+              width="300%"
+              height="300%"
+            >
+
+              <feGaussianBlur
+                stdDeviation="2.5"
+                result="blur"
+              />
+
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+
+            </filter>
+
+          </defs>
+
+
+          <!-- =============================================
+               HANDLE
+          ============================================== -->
+
+          <path
+            d="
+              M108 76
+              C108 39 124 22 160 22
+              C196 22 212 39 212 76
+            "
+            fill="none"
+            stroke="#020604"
+            stroke-width="24"
+            stroke-linecap="round"
+          />
+
+          <path
+            d="
+              M108 76
+              C108 39 124 22 160 22
+              C196 22 212 39 212 76
+            "
+            fill="none"
+            stroke="url(#metalGradient)"
+            stroke-width="16"
+            stroke-linecap="round"
+          />
+
+          <path
+            d="
+              M116 68
+              C120 46 136 35 160 35
+              C184 35 200 46 204 68
+            "
+            fill="none"
+            stroke="#5e6e63"
+            stroke-width="2"
+            stroke-opacity="0.25"
+          />
+
+
+          <!-- =============================================
+               TOP CAP
+          ============================================== -->
+
+          <path
+            d="
+              M112 78
+              Q160 64 208 78
+              L220 116
+              Q160 132 100 116
+              Z
+            "
+            fill="url(#metalGradient)"
+            stroke="#26362c"
+            stroke-width="2"
+          />
+
+
+          <!-- =============================================
+               NECK
+          ============================================== -->
+
+          <path
+            d="
+              M119 108
+              Q160 118 201 108
+              L194 174
+              Q160 183 126 174
+              Z
+            "
+            fill="url(#bodyGradient)"
+          />
+
+          <path
+            d="
+              M128 117
+              Q160 126 192 117
+            "
+            fill="none"
+            stroke="#5e7567"
+            stroke-opacity="0.16"
+            stroke-width="3"
+          />
+
+
+          <!-- =============================================
+               MAIN BODY
+          ============================================== -->
+
+          <path
+            d="
+              M119 157
+              Q104 164 94 184
+              Q81 211 82 244
+              Q84 292 111 323
+              Q132 347 160 351
+              Q188 347 209 323
+              Q236 292 238 244
+              Q239 211 226 184
+              Q216 164 201 157
+              Q160 145 119 157
+              Z
+            "
+            fill="url(#bodyGradient)"
+            stroke="#17261c"
+            stroke-width="4"
+          />
+
+
+          <!-- =============================================
+               SIDE ARMS
+          ============================================== -->
+
+          <path
+            d="
+              M91 208
+              L47 220
+              Q38 223 38 235
+              L38 250
+              Q38 261 48 264
+              L91 274
+              Z
+            "
+            fill="url(#greenMetal)"
+            stroke="#21442e"
+            stroke-width="2"
+          />
+
+          <path
+            d="
+              M229 208
+              L273 220
+              Q282 223 282 235
+              L282 250
+              Q282 261 272 264
+              L229 274
+              Z
+            "
+            fill="url(#greenMetal)"
+            stroke="#21442e"
+            stroke-width="2"
+          />
+
+
+          <!-- Rounded side highlights -->
+
+          <path
+            d="
+              M47 229
+              Q41 230 41 239
+              Q41 249 47 252
+              L84 258
+              L84 222
+              Z
+            "
+            fill="#4aff8c"
+            opacity="0.13"
+          />
+
+          <path
+            d="
+              M273 229
+              Q279 230 279 239
+              Q279 249 273 252
+              L236 258
+              L236 222
+              Z
+            "
+            fill="#4aff8c"
+            opacity="0.13"
+          />
+
+
+          <!-- =============================================
+               FRONT GLASS / POWER CHAMBER
+          ============================================== -->
+
+          <ellipse
+            cx="160"
+            cy="248"
+            rx="78"
+            ry="82"
+            fill="#020805"
+            stroke="#0b2415"
+            stroke-width="8"
+          />
+
+          <ellipse
+            cx="160"
+            cy="248"
+            rx="69"
+            ry="73"
+            fill="url(#glassGradient)"
+            stroke="#2b8f50"
+            stroke-opacity="0.55"
+            stroke-width="3"
+          />
+
+
+          <!-- Inner glass ring -->
+
+          <ellipse
+            cx="160"
+            cy="248"
+            rx="57"
+            ry="61"
+            fill="none"
+            stroke="#42ff8a"
+            stroke-opacity="0.14"
+            stroke-width="3"
+          />
+
+
+          <!-- Glass highlight -->
+
+          <path
+            d="
+              M123 205
+              Q143 183 168 188
+              Q143 197 128 229
+              Q121 242 119 258
+            "
+            fill="none"
+            stroke="#ffffff"
+            stroke-opacity="0.10"
+            stroke-width="6"
+            stroke-linecap="round"
+          />
+
+
+          <!-- =============================================
+               GREEN LANTERN SYMBOL
+          ============================================== -->
+
+          <g
+            id="lanternSymbol"
+            class="lantern-symbol"
+            filter="url(#symbolGlow)"
+          >
+
+            <rect
+              x="135"
+              y="211"
+              width="50"
+              height="7"
+              rx="3.5"
+              fill="#7dffab"
+            />
+
+            <circle
+              cx="160"
+              cy="248"
+              r="21"
+              fill="none"
+              stroke="#7dffab"
+              stroke-width="7"
+            />
+
+            <rect
+              x="135"
+              y="278"
+              width="50"
+              height="7"
+              rx="3.5"
+              fill="#7dffab"
+            />
+
+          </g>
+
+
+          <!-- =============================================
+               LOWER NECK
+          ============================================== -->
+
+          <path
+            d="
+              M111 322
+              Q160 340 209 322
+              L220 347
+              Q160 364 100 347
+              Z
+            "
+            fill="url(#metalGradient)"
+            stroke="#24382b"
+            stroke-width="2"
+          />
+
+
+          <!-- =============================================
+               BASE
+          ============================================== -->
+
+          <path
+            d="
+              M105 343
+              Q160 359 215 343
+              L229 390
+              Q160 411 91 390
+              Z
+            "
+            fill="url(#metalGradient)"
+            stroke="#26372c"
+            stroke-width="3"
+          />
+
+          <path
+            d="
+              M92 385
+              Q160 402 228 385
+              L228 399
+              Q160 417 92 399
+              Z
+            "
+            fill="#07100a"
+          />
+
+          <path
+            d="
+              M110 356
+              Q160 368 210 356
+            "
+            fill="none"
+            stroke="url(#metalShine)"
+            stroke-width="5"
+            opacity="0.45"
+          />
+
+        </svg>
+
+
+        <!-- =============================================
+             FRONT LIGHT
+        ============================================== -->
+
+        <div
+          class="lantern-front-light"
+          id="lanternFrontLight"
+          aria-hidden="true"
+        ></div>
+
+        <div
+          class="lantern-core"
+          aria-hidden="true"
+        ></div>
+
+      </div>
+
+    </section>
+
+
+    <!-- =====================================================
+         INSTRUCTION
+    ====================================================== -->
+
+    <div
+      class="instruction"
+      id="instruction"
+    >
+      Bring the ring to the battery
+    </div>
+
+
+    <!-- =====================================================
+         CHARGE
+    ====================================================== -->
+
+    <div class="progress">
+
+      <span class="progress-label">
+        CHARGE
+      </span>
+
+      <span id="progressText">
+        0%
+      </span>
+
+    </div>
+
+
+    <!-- =====================================================
+         RING CURSOR
+    ====================================================== -->
+
+    <div
+      class="cursor-ring"
+      id="cursorRing"
+    >
+
+      <svg
+        viewBox="0 0 100 100"
+        aria-hidden="true"
+      >
+
         <defs>
-          <linearGradient id="beamGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="rgba(160,255,196,0.02)"></stop>
-            <stop offset="30%" stop-color="rgba(124,255,170,0.48)"></stop>
-            <stop offset="70%" stop-color="rgba(200,255,221,0.88)"></stop>
-            <stop offset="100%" stop-color="rgba(90,255,145,0.08)"></stop>
-          </linearGradient>
 
-          <filter id="beamGlow">
-            <feGaussianBlur stdDeviation="3.2" result="blur" />
+          <radialGradient
+            id="ringMetal"
+            cx="35%"
+            cy="25%"
+            r="75%"
+          >
+
+            <stop
+              offset="0%"
+              stop-color="#6bff9a"
+            />
+
+            <stop
+              offset="22%"
+              stop-color="#168d45"
+            />
+
+            <stop
+              offset="58%"
+              stop-color="#06381a"
+            />
+
+            <stop
+              offset="100%"
+              stop-color="#010b05"
+            />
+
+          </radialGradient>
+
+
+          <radialGradient
+            id="ringFace"
+            cx="35%"
+            cy="30%"
+            r="75%"
+          >
+
+            <stop
+              offset="0%"
+              stop-color="#f2fff6"
+            />
+
+            <stop
+              offset="15%"
+              stop-color="#aaffc6"
+            />
+
+            <stop
+              offset="40%"
+              stop-color="#2dff7d"
+            />
+
+            <stop
+              offset="72%"
+              stop-color="#087f3a"
+            />
+
+            <stop
+              offset="100%"
+              stop-color="#02190a"
+            />
+
+          </radialGradient>
+
+
+          <filter
+            id="ringGlow"
+            x="-100%"
+            y="-100%"
+            width="300%"
+            height="300%"
+          >
+
+            <feGaussianBlur
+              stdDeviation="1.5"
+              result="blur"
+            />
+
             <feMerge>
               <feMergeNode in="blur" />
               <feMergeNode in="SourceGraphic" />
             </feMerge>
+
           </filter>
+
         </defs>
 
-        <line id="beamBlur" class="beam beam-blur" x1="0" y1="0" x2="0" y2="0"></line>
-        <line id="beam" class="beam beam-core" x1="0" y1="0" x2="0" y2="0"></line>
+
+        <!-- shadow -->
+
+        <ellipse
+          cx="50"
+          cy="74"
+          rx="29"
+          ry="9"
+          fill="#000"
+          opacity="0.6"
+        />
+
+
+        <!-- actual ring band -->
+
+        <ellipse
+          cx="50"
+          cy="60"
+          rx="29"
+          ry="17"
+          fill="url(#ringMetal)"
+          stroke="#0b5d2b"
+          stroke-width="2"
+        />
+
+
+        <!-- inner opening -->
+
+        <ellipse
+          cx="50"
+          cy="60"
+          rx="19"
+          ry="10"
+          fill="#010704"
+          stroke="#123f23"
+          stroke-width="2"
+        />
+
+
+        <!-- raised bezel -->
+
+        <ellipse
+          cx="50"
+          cy="42"
+          rx="20"
+          ry="18"
+          fill="url(#ringMetal)"
+          stroke="#3ed879"
+          stroke-opacity="0.45"
+          stroke-width="1.5"
+        />
+
+
+        <!-- ring face -->
+
+        <ellipse
+          cx="50"
+          cy="41"
+          rx="14"
+          ry="12"
+          fill="url(#ringFace)"
+          filter="url(#ringGlow)"
+        />
+
+
+        <!-- symbol -->
+
+        <g
+          transform="translate(50 41)"
+          stroke="#06361a"
+          stroke-width="2.2"
+          fill="none"
+        >
+
+          <line
+            x1="-6"
+            y1="-6"
+            x2="6"
+            y2="-6"
+          />
+
+          <circle
+            cx="0"
+            cy="0"
+            r="5"
+          />
+
+          <line
+            x1="-6"
+            y1="6"
+            x2="6"
+            y2="6"
+          />
+
+        </g>
+
+
+        <!-- metal highlight -->
+
+        <path
+          d="
+            M30 50
+            Q34 30 49 27
+          "
+          fill="none"
+          stroke="#d9ffe5"
+          stroke-opacity="0.28"
+          stroke-width="2"
+          stroke-linecap="round"
+        />
+
       </svg>
 
-      <div class="three-stage" id="threeStage"></div>
+    </div>
 
-      <div class="instruction" id="instruction">Bring the ring to the battery</div>
 
-      <div class="model-status" id="modelStatus">Scene readying…</div>
+    <!-- =====================================================
+         COMPLETION FLASH
+    ====================================================== -->
 
-      <div class="charge-ui">
-        <span>Charge</span>
-        <strong id="progressText">0%</strong>
+    <div
+      class="flash"
+      id="flash"
+    ></div>
+
+
+    <!-- =====================================================
+         FINAL SCREEN
+    ====================================================== -->
+
+    <section
+      class="reveal"
+      id="reveal"
+    >
+
+      <div class="reveal-content">
+
+        <span class="eyebrow">
+          ENERGY LEVEL
+        </span>
+
+        <h1>
+          CHARGED.
+        </h1>
+
+        <p>
+          Power battery fully energized.
+        </p>
+
+        <button id="restart">
+          Recharge
+        </button>
+
       </div>
 
-      <div class="flash" id="flash"></div>
+    </section>
 
-      <section class="reveal" id="reveal" aria-hidden="true">
-        <div class="reveal-inner">
-          <span>POWER BATTERY // FULL OUTPUT</span>
-          <h1>CHARGED.</h1>
-          <p>Will synchronized. Energy transfer complete.</p>
-          <button id="restart">Recharge</button>
-        </div>
-      </section>
-    </main>
+  </main>
 
-    <script type="module" src="script.js"></script>
-  </body>
+
+  <script src="./script.js"></script>
+
+</body>
 </html>
