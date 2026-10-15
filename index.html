@@ -29,7 +29,7 @@
 
       <div class="cinematic-kicker">O.A. ENERGY LINK // SECTOR 2814</div>
 
-      <section class="oath" aria-live="polite">
+      <section class="oath" role="group" aria-label="The Green Lantern oath">
         <p class="oath-line oath-line-one">
           <span>IN BRIGHTEST DAY,</span>
           <strong>IN BLACKEST NIGHT,</strong>
@@ -75,9 +75,10 @@
 
       <div class="three-stage" id="threeStage"></div>
 
-      <div class="instruction" id="instruction">Bring the ring to the battery</div>
+      <div class="instruction" id="instruction" aria-live="polite">Bring the ring to the battery</div>
+      <div class="sr-only" id="srStatus" role="status" aria-live="polite"></div>
 
-      <div class="model-status" id="modelStatus">Scene readying…</div>
+      <div class="model-status" id="modelStatus">Forging the ring…</div>
 
       <div class="charge-ui">
         <span>Charge</span>

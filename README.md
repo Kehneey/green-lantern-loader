@@ -23,12 +23,18 @@ Because the page loads 3D assets, use a local server rather than opening `index.
 
 ## Interaction
 
-1. Move your mouse toward the battery.
-2. The 3D ring is magnetically attracted toward the charging point.
-3. When it snaps into place, press and hold the mouse button.
-4. The charge rises and the oath reveals progressively.
-5. Releasing early causes the charge to drain.
-6. At 100%, the completion transition plays.
+1. Move the pointer (or drag a finger) toward the battery. Keyboard: arrow keys move the ring.
+2. The 3D ring is magnetically attracted toward the lens.
+3. When it snaps into place, press and hold (mouse, touch or Space).
+4. A full charge takes about 22 seconds of continuous holding. The oath appears one word at a time, line by line.
+5. Releasing early drains the charge slowly and the oath fades back out.
+6. At 100%, the ring spins up, the lens flares, a shockwave fires and the result screen appears.
+
+`prefers-reduced-motion` is respected: no camera sway, shake, grain or hard flash.
+
+## Tuning
+
+The timing constants (`CHARGE_SECONDS`, `OATH_THRESHOLDS`, `FINISH_*`) are at the top of `script.js`. The per-word oath pace is the `.46s` stagger in `style.css` (`.oath-line.visible .word`).
 
 ## GitHub Pages
 
