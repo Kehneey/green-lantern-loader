@@ -1,53 +1,63 @@
-# Green Lantern Loader Test
+# Green Lantern Loader
 
-Interactive Three.js charging-loader prototype using two GLB models: the comic-style power battery and ring.
+An interactive Three.js loader: wake the power ring, charge it on the lantern while the oath is spoken, and get sworn in. Works with a mouse, touch screens and the keyboard, on desktop and mobile.
+
+## The experience
+
+1. **Pick up the ring.** It lies dead at the bottom of the screen. The mouse pointer becomes a green glove: grab the ring (click it, or press and drag). On a phone, touch and drag it; it floats just above your finger so you can see it.
+2. **Knock it against the side of the screen.** Edges glow to show where. A proper knock goes *KLANG!*, the ring flickers awake and reports: "Ring power at two percent. Recharge required."
+3. **Take it to the lantern.** The lens pulls the ring in and it locks on.
+4. **Hold to charge.** As the charge climbs, the oath is spoken line by line and each word pops onto the screen in comic lettering as it is said. Let go and the charge pauses (and slowly drains); the oath never repeats or talks over itself, and the ring will not finish until the whole oath has been said.
+5. **Finale.** "Ring fully charged." Flash, shockwave, then the welcome page: *Welcome, Green Lantern of Sector 2814. Earth's guardian.*
+
+If you hesitate, a ghost glove demonstrates the next move. Drop the ring and it falls and bounces; you can even throw it at the edge. Knock it again later for a quick power reading.
+
+### Controls
+
+| | Mouse | Touch | Keyboard |
+|---|---|---|---|
+| Pick up | Click the ring (or press and drag) | Touch and drag | Space |
+| Move | Move the mouse | Drag | Arrow keys (Shift = faster) |
+| Let go | Click again, or release a drag | Lift your finger | Space |
+| Charge | Press and hold | Hold your finger down | Hold Space |
+| Mute | Sound button | Sound button | M |
+
+*Skip intro* jumps straight to charging. *Recharge* on the welcome page drops the ring at 2% for another go.
 
 ## Files
 
-- `index.html`
-- `style.css`
-- `script.js`: scene, input, charge, finish sequence
+- `index.html`, `style.css`
+- `script.js`: scene, stages, input, ring physics, charge, finale, welcome page
+- `voice.js`: speech synthesis; picks the most natural English voice and reports each word as it is spoken
+- `oath.js`: the spoken comic-lettered oath, queued line by line
 - `audio.js`: synthesised sound (Web Audio, no audio files)
-- `assets/green_lantern.glb` and `assets/green-lantern-ring.glb`
+- `hand.js`: the glove cursor and the ghost demonstration glove
+- `assets/green_lantern.glb`, `assets/green-lantern-ring.glb`: the comic battery and ring, meshopt-compressed (about 3 MB together, down from 19 MB)
 
 ## Run locally
 
-Because the page loads 3D assets, use a local server rather than opening `index.html` directly.
+The page loads ES modules and 3D models, so serve the folder rather than opening `index.html` directly:
 
-### VS Code + Live Server
+```bash
+python -m http.server 8123
+```
 
-1. Open this folder in VS Code.
-2. Install the **Live Server** extension.
-3. Right-click `index.html`.
-4. Choose **Open with Live Server**.
+then open http://localhost:8123. VS Code's Live Server works too.
 
-## Interaction
+## Sound and voice
 
-1. Move the pointer (or drag a finger) toward the battery. Keyboard: arrow keys move the ring.
-2. The 3D ring is magnetically attracted toward the lens.
-3. When it snaps into place, press and hold (mouse, touch or Space).
-4. A full charge takes about 22 seconds of continuous holding. The oath appears one word at a time, line by line.
-5. Releasing early drains the charge slowly and the oath fades back out.
-6. At 100%, the ring trembles, the lens flares and a shockwave fires, then the welcome page appears.
+Everything is generated in the browser: a drone, the ring's swish as you swing it, the metal clank on the edge, the ring powering on, the lock-on, a charge hum that rises with the charge, a low hit under each word of the oath, and the finale boom. The music ducks while the voice speaks.
 
-## Welcome page
+The voice is the device's built-in speech synthesis, so it varies: Edge's "Natural" voices and Safari's voices sound best. Browsers only allow sound after a tap or click, so it starts on your first touch (or tap the Sound button). With sound off, the oath still appears word by word at speaking pace.
 
-"Ring fully charged. Welcome, Green Lantern. Sector 2814." The page shows a Lantern ID card with a random callsign (re-roll it), your real charge time, and rotating dispatches from Oa. Tap anywhere to summon a random construct, or copy your Lantern ID to share. A low spoken line plays once if sound is on.
-
-## Sound
-
-All sound is synthesised in the browser: a low drone, a magnetic pull as the ring approaches, a lock-on clunk, a charge hum that rises in pitch and tremolo with the charge, a swell for each oath line and a riser and boom at the finish, then a spoken welcome using the browser's built-in voice. Browsers only allow audio after a click, so it starts on your first press. Use the Sound button or press `M` to mute.
-
-`prefers-reduced-motion` is respected: no camera sway, shake, grain or hard flash.
+`prefers-reduced-motion` is respected: no camera sway, shake, grain, pop-in or hard flash.
 
 ## Tuning
 
-The timing constants (`CHARGE_SECONDS`, `OATH_THRESHOLDS`, `FINISH_*`) are at the top of `script.js`. The per-word oath pace is the `.46s` stagger in `style.css` (`.oath-line.visible .word`).
+Timing constants are at the top of `script.js`: `CHARGE_SECONDS`, `START_CHARGE`, `OATH_THRESHOLDS`, `KNOCK_SPEED`, `HINT_DELAY` and `FINISH_*`. The oath text and its emphasised words are at the top of `oath.js`; voice preferences are at the top of `voice.js`.
+
+Open the page with `?debug` to get `window.__lantern` in the console (stage, charge, ring state; you can set `__lantern.charge` to fast-forward).
 
 ## GitHub Pages
 
-This project is static and can be published directly with GitHub Pages from the repository root.
-
-
-## GitHub upload note
-Both 3D model files are now under GitHub's 25 MB browser-upload limit. The larger battery was converted from STL to GLB, reducing it from about 31.8 MB to about 11.5 MB without changing the visible geometry.
+The project is static and can be published with GitHub Pages from the repository root.

@@ -2,11 +2,17 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Wake the power ring, charge it on the lantern and say the oath." />
     <title>Green Lantern Loader</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Bangers&family=Inter:wght@400;500;600;700;800&display=swap"
+    />
     <link rel="stylesheet" href="style.css" />
 
     <script type="importmap">
@@ -19,39 +25,14 @@
     </script>
   </head>
   <body>
-    <main class="loader">
+    <main class="loader" id="loader" data-stage="loading">
       <div class="background"></div>
       <div class="ambient" id="ambient"></div>
-      <div class="floor-glow" id="floorGlow"></div>
-
       <div class="dust" id="dust"></div>
-      <div class="particles" id="particles"></div>
 
       <div class="cinematic-kicker">O.A. ENERGY LINK // SECTOR 2814</div>
 
-      <section class="oath" role="group" aria-label="The Green Lantern oath">
-        <p class="oath-line oath-line-one">
-          <span>IN BRIGHTEST DAY,</span>
-          <strong>IN BLACKEST NIGHT,</strong>
-        </p>
-
-        <p class="oath-line oath-line-two">
-          <span>NO EVIL SHALL</span>
-          <strong>ESCAPE MY SIGHT.</strong>
-        </p>
-
-        <p class="oath-line oath-line-three">
-          <span>LET THOSE WHO WORSHIP</span>
-          <strong>EVIL'S MIGHT,</strong>
-        </p>
-
-        <p class="oath-line final-oath-line">
-          <span>BEWARE MY POWER...</span>
-          <strong>GREEN LANTERN'S LIGHT!</strong>
-        </p>
-      </section>
-
-      <svg class="beam-layer" viewBox="0 0 100 100" preserveAspectRatio="none">
+      <svg class="beam-layer" aria-hidden="true">
         <defs>
           <linearGradient id="beamGradient" x1="0%" y1="0%" x2="100%" y2="0%">
             <stop offset="0%" stop-color="rgba(160,255,196,0.02)"></stop>
@@ -75,37 +56,57 @@
 
       <div class="three-stage" id="threeStage"></div>
 
-      <div class="instruction" id="instruction" aria-live="polite">Bring the ring to the battery</div>
+      <div class="edge-hint edge-left" id="edgeLeft" aria-hidden="true"></div>
+      <div class="edge-hint edge-right" id="edgeRight" aria-hidden="true"></div>
+      <div class="pickup-marker" id="pickupMarker" aria-hidden="true"></div>
+
+      <div class="ring-hud" id="ringHud" aria-hidden="true">
+        <svg viewBox="0 0 48 48">
+          <circle class="hud-track" cx="24" cy="24" r="20"></circle>
+          <circle class="hud-fill" id="hudFill" cx="24" cy="24" r="20"></circle>
+        </svg>
+        <span id="hudText">0%</span>
+      </div>
+
+      <section class="comic-oath" id="comicOath" aria-label="The Green Lantern oath"></section>
+
+      <div class="bursts" id="bursts" aria-hidden="true"></div>
+
+      <p class="prompt" id="prompt"></p>
       <div class="sr-only" id="srStatus" role="status" aria-live="polite"></div>
 
-      <div class="model-status" id="modelStatus">Forging the ring…</div>
-      <button class="sound-toggle" id="soundToggle" type="button" aria-pressed="false">Sound · click to start</button>
+      <button class="corner sound-toggle" id="soundToggle" type="button" aria-pressed="false">
+        Sound · tap to start
+      </button>
 
-      <div class="charge-ui">
-        <span>Charge</span>
-        <strong id="progressText">0%</strong>
+      <div class="corner power-ui" aria-hidden="true">
+        <span>Ring power</span>
+        <strong id="powerText">0%</strong>
       </div>
+
+      <button class="skip" id="skipIntro" type="button" hidden>Skip intro ›</button>
 
       <div class="flash" id="flash"></div>
 
       <section class="reveal" id="reveal" aria-hidden="true" aria-labelledby="revealTitle">
         <div class="reveal-inner">
-          <span class="reveal-kicker">RING CHARGE 100% // OATH ACCEPTED</span>
+          <span class="reveal-kicker">RING FULLY CHARGED // 100%</span>
 
           <h1 id="revealTitle">
             <span class="title-line">WELCOME,</span>
             <span class="title-line title-accent">GREEN LANTERN</span>
           </h1>
 
-          <p class="reveal-sector">SECTOR 2814</p>
+          <p class="reveal-sector">SECTOR 2814 · EARTH'S GUARDIAN</p>
 
           <div class="id-card" aria-label="Your Lantern ID">
             <div class="id-row"><span>Callsign</span><strong id="callsign"></strong></div>
             <div class="id-row"><span>Lantern ID</span><strong id="lanternId"></strong></div>
+            <div class="id-row"><span>Sector</span><strong>2814 · EARTH</strong></div>
             <div class="id-row"><span>Charge time</span><strong id="chargeTime"></strong></div>
-            <div class="id-row"><span>Willpower</span><strong>OVERWHELMING</strong></div>
-            <div class="id-row"><span>Fear detected</span><strong>0%</strong></div>
-            <div class="id-row"><span>Yellow things</span><strong>NOT TODAY</strong></div>
+            <div class="id-row optional"><span>Willpower</span><strong>OVERWHELMING</strong></div>
+            <div class="id-row optional"><span>Fear detected</span><strong>0%</strong></div>
+            <div class="id-row optional"><span>Yellow things</span><strong>NOT TODAY</strong></div>
           </div>
 
           <p class="dispatch" id="dispatch" aria-live="polite"></p>
@@ -119,7 +120,20 @@
           <p class="reveal-hint">Tap anywhere to summon a construct</p>
         </div>
       </section>
+
+      <div class="boot" id="boot">
+        <p class="boot-title">FORGING THE RING</p>
+        <div class="boot-bar"><span id="bootFill"></span></div>
+        <p class="boot-status" id="bootStatus">0%</p>
+      </div>
+
+      <div class="hand ghost-hand" id="ghost" aria-hidden="true"></div>
+      <div class="hand" id="hand" aria-hidden="true"></div>
     </main>
+
+    <noscript>
+      <p class="noscript">This experience needs JavaScript and WebGL.</p>
+    </noscript>
 
     <script type="module" src="script.js"></script>
   </body>
