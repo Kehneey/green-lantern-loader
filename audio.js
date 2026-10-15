@@ -417,6 +417,41 @@ export function createAudio() {
     tone({ type: "sine", from: 2349, duration: 2.8, attack: 0.02, start: 0.08, peak: 0.02 });
   }
 
+  // Short UI blips for the welcome page.
+  function blip() {
+    if (!ready) return;
+    tone({ type: "sine", from: 660, to: 990, duration: 0.18, peak: 0.07 });
+    tone({ type: "sine", from: 1320, to: 1760, start: 0.05, duration: 0.2, peak: 0.03 });
+  }
+
+  function construct() {
+    if (!ready) return;
+    burst({ from: 400, to: 3200, duration: 0.5, attack: 0.02, peak: 0.1, q: 1.4 });
+    tone({ type: "triangle", from: 180, to: 540, duration: 0.45, peak: 0.1, lowpass: 1600 });
+    tone({ type: "sine", from: 1040, to: 1560, start: 0.12, duration: 0.5, peak: 0.04 });
+  }
+
+  // A low, slow spoken line. Uses the browser's built-in voice, so it is
+  // skipped when muted or when speech synthesis is not available.
+  function speak(text) {
+    if (!ready || muted || !("speechSynthesis" in window)) return;
+
+    try {
+      window.speechSynthesis.cancel();
+      const line = new SpeechSynthesisUtterance(text);
+      line.pitch = 0.55;
+      line.rate = 0.86;
+      line.volume = 0.9;
+      window.speechSynthesis.speak(line);
+    } catch (error) {
+      /* voice is a bonus */
+    }
+  }
+
+  function stopVoice() {
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  }
+
   function reset() {
     if (!ready) return;
     burst({ from: 3000, to: 200, duration: 0.9, attack: 0.02, peak: 0.1, q: 0.6 });
@@ -433,6 +468,7 @@ export function createAudio() {
     }
 
     if (ready) master.gain.setTargetAtTime(muted ? 0 : 0.9, ctx.currentTime, 0.08);
+    if (muted) stopVoice();
   }
 
   function suspend() {
@@ -452,6 +488,10 @@ export function createAudio() {
     finishBoom,
     reveal,
     reset,
+    blip,
+    construct,
+    speak,
+    stopVoice,
     setMuted,
     suspend,
     resume,

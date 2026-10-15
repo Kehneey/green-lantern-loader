@@ -88,12 +88,35 @@
 
       <div class="flash" id="flash"></div>
 
-      <section class="reveal" id="reveal" aria-hidden="true">
+      <section class="reveal" id="reveal" aria-hidden="true" aria-labelledby="revealTitle">
         <div class="reveal-inner">
-          <span>POWER BATTERY // FULL OUTPUT</span>
-          <h1>CHARGED.</h1>
-          <p>Will synchronized. Energy transfer complete.</p>
-          <button id="restart">Recharge</button>
+          <span class="reveal-kicker">RING CHARGE 100% // OATH ACCEPTED</span>
+
+          <h1 id="revealTitle">
+            <span class="title-line">WELCOME,</span>
+            <span class="title-line title-accent">GREEN LANTERN</span>
+          </h1>
+
+          <p class="reveal-sector">SECTOR 2814</p>
+
+          <div class="id-card" aria-label="Your Lantern ID">
+            <div class="id-row"><span>Callsign</span><strong id="callsign"></strong></div>
+            <div class="id-row"><span>Lantern ID</span><strong id="lanternId"></strong></div>
+            <div class="id-row"><span>Charge time</span><strong id="chargeTime"></strong></div>
+            <div class="id-row"><span>Willpower</span><strong>OVERWHELMING</strong></div>
+            <div class="id-row"><span>Fear detected</span><strong>0%</strong></div>
+            <div class="id-row"><span>Yellow things</span><strong>NOT TODAY</strong></div>
+          </div>
+
+          <p class="dispatch" id="dispatch" aria-live="polite"></p>
+
+          <div class="reveal-actions">
+            <button id="reroll" type="button">New callsign</button>
+            <button id="copyId" type="button">Copy Lantern ID</button>
+            <button id="restart" type="button">Recharge</button>
+          </div>
+
+          <p class="reveal-hint">Tap anywhere to summon a construct</p>
         </div>
       </section>
     </main>

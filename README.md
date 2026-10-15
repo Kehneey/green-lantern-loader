@@ -1,6 +1,6 @@
 # Green Lantern Loader Test
 
-Interactive Three.js charging-loader prototype: a gold signet power ring charging on a brass power-battery lantern.
+Interactive Three.js charging-loader prototype using two GLB models: the comic-style power battery and ring.
 
 ## Files
 
@@ -8,7 +8,7 @@ Interactive Three.js charging-loader prototype: a gold signet power ring chargin
 - `style.css`
 - `script.js`: scene, input, charge, finish sequence
 - `audio.js`: synthesised sound (Web Audio, no audio files)
-- `assets/*.glb`: the original comic-style battery and ring. They are no longer loaded; the ring and lantern are now built in code to match the reference photos.
+- `assets/green_lantern.glb` and `assets/green-lantern-ring.glb`
 
 ## Run locally
 
@@ -28,11 +28,15 @@ Because the page loads 3D assets, use a local server rather than opening `index.
 3. When it snaps into place, press and hold (mouse, touch or Space).
 4. A full charge takes about 22 seconds of continuous holding. The oath appears one word at a time, line by line.
 5. Releasing early drains the charge slowly and the oath fades back out.
-6. At 100%, the ring spins up, the lens flares, a shockwave fires and the result screen appears.
+6. At 100%, the ring trembles, the lens flares and a shockwave fires, then the welcome page appears.
+
+## Welcome page
+
+"Ring fully charged. Welcome, Green Lantern. Sector 2814." The page shows a Lantern ID card with a random callsign (re-roll it), your real charge time, and rotating dispatches from Oa. Tap anywhere to summon a random construct, or copy your Lantern ID to share. A low spoken line plays once if sound is on.
 
 ## Sound
 
-All sound is synthesised in the browser: a low drone, a magnetic pull as the ring approaches, a lock-on clunk, a charge hum that rises in pitch and tremolo with the charge, a swell for each oath line and a riser and boom at the finish. Browsers only allow audio after a click, so it starts on your first press. Use the Sound button or press `M` to mute.
+All sound is synthesised in the browser: a low drone, a magnetic pull as the ring approaches, a lock-on clunk, a charge hum that rises in pitch and tremolo with the charge, a swell for each oath line and a riser and boom at the finish, then a spoken welcome using the browser's built-in voice. Browsers only allow audio after a click, so it starts on your first press. Use the Sound button or press `M` to mute.
 
 `prefers-reduced-motion` is respected: no camera sway, shake, grain or hard flash.
 
