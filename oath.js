@@ -11,6 +11,19 @@ const LINES = [
   { text: "Beware my power... Green Lantern's light!", clip: "vo_oath_4", key: ["power", "green", "lantern's", "light"] }
 ];
 
+// Where each line falls in assets/audio/oath_track.mp3, in seconds, measured
+// from the voice's loudness. Each part is [start, end, words]; a line's words
+// are spread across its parts. Adjust these if you swap in a different take.
+const TRACK_CUES = [
+  [[0.35, 1.5, 3], [2.95, 4.1, 3]],
+  [[5.0, 7.3, 6]],
+  [[9.1, 11.7, 6]],
+  [[13.15, 14.25, 3], [15.55, 16.85, 3]]
+];
+
+// The track is "finished" once the last word has landed.
+export const TRACK_END = 17.3;
+
 const plain = word => word.toLowerCase().replace(/[^a-z']/g, "");
 
 export function createOath({ container, voice, audio, onKeyWord = () => {} }) {
@@ -98,7 +111,32 @@ export function createOath({ container, voice, audio, onKeyWord = () => {} }) {
     pump();
   }
 
+  // Track mode: reveal lines and words from the oath track's playback time.
+  let trackLine = -1;
+
+  function setTrackTime(t) {
+    TRACK_CUES.forEach((parts, lineIndex) => {
+      if (t < parts[0][0] - 0.2) return;
+
+      if (lineIndex > trackLine) {
+        trackLine = lineIndex;
+        setCurrent(lineIndex);
+        reader.textContent = LINES.slice(0, lineIndex + 1).map(line => line.text).join(" ");
+      }
+
+      let word = 0;
+      for (const [start, end, count] of parts) {
+        for (let k = 0; k < count; k++, word++) {
+          if (t >= start + ((end - start) * k) / count) showWord(lineIndex, word);
+        }
+      }
+    });
+
+    if (t >= TRACK_END) state.done = true;
+  }
+
   function reset() {
+    trackLine = -1;
     voice.stop();
     window.clearTimeout(state.doneTimer);
     state.queue = [];
@@ -117,6 +155,7 @@ export function createOath({ container, voice, audio, onKeyWord = () => {} }) {
   return {
     trigger,
     reset,
+    setTrackTime,
     get done() {
       return state.done;
     },

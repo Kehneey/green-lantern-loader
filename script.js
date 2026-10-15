@@ -10,7 +10,7 @@ import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { createAudio } from "./audio.js";
 import { createVoice } from "./voice.js";
-import { createOath } from "./oath.js";
+import { createOath, TRACK_END } from "./oath.js";
 import { createHand, createGhost } from "./hand.js";
 import { createConstructs } from "./constructs.js";
 
@@ -28,22 +28,24 @@ const loaderEl = $("loader");
 const stageEl = $("threeStage");
 const promptEl = $("prompt");
 const srStatus = $("srStatus");
-const ambientEl = $("ambient");
-const dustContainer = $("dust");
 const beam = $("beam");
 const beamBlur = $("beamBlur");
 const flash = $("flash");
 const reveal = $("reveal");
 const restart = $("restart");
-const bootEl = $("boot");
-const bootFill = $("bootFill");
-const bootStatus = $("bootStatus");
+const introEl = $("intro");
+const introCount = $("introCount");
+const introFill = $("introFill");
+const introLabel = $("introLabel");
+const enterBtn = $("enterBtn");
+const enterQuiet = $("enterQuiet");
 const soundToggle = $("soundToggle");
+const soundLabel = $("soundLabel");
 const skipBtn = $("skipIntro");
 const powerText = $("powerText");
-const hudEl = $("ringHud");
-const hudFill = $("hudFill");
-const hudText = $("hudText");
+const powerFill = $("powerFill");
+const chapterNum = $("chapterNum");
+const chapterName = $("chapterName");
 const markerEl = $("pickupMarker");
 const cuesEl = $("cues");
 const constructsEl = $("constructs");
@@ -97,6 +99,7 @@ const MAX_PIXEL_RATIO = LOW_POWER ? 1.4 : 1.75;
 
 const Stage = {
   LOADING: "loading",
+  INTRO: "intro",     // title card, waiting for Enter
   PICKUP: "pickup",   // ring lies at the bottom, dead
   TAP: "tap",         // ring in hand: knock it against the edge to wake it
   SEEK: "seek",       // ring awake at 2%: take it to the lantern
@@ -199,8 +202,8 @@ try {
 }
 
 if (!renderer) {
-  bootEl.classList.add("is-error");
-  bootStatus.textContent = "This browser can't show 3D (WebGL is unavailable).";
+  introEl.classList.add("is-error");
+  introLabel.textContent = "This browser can't show 3D (WebGL is unavailable).";
   throw new Error("WebGL unavailable");
 }
 
@@ -218,7 +221,7 @@ renderer.domElement.setAttribute("aria-label", "A Green Lantern power battery an
 // Studio reflections are what make the metal look like metal.
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environmentIntensity = 0.55;
+scene.environmentIntensity = 0.4;
 pmrem.dispose();
 
 /* ===================================== */
@@ -232,14 +235,72 @@ const bloomPass = new UnrealBloomPass(new THREE.Vector2(vw() / 2, vh() / 2), 0.5
 composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
 
-// Lens finish: vignette, a touch of chromatic aberration and film grain.
+// Light shafts: a radial blur of the brightest pixels out from the lens, the
+// classic "volumetric" god-ray look. Runs in linear HDR, before tone mapping.
+const SHAFT_SAMPLES = LOW_POWER ? 24 : 40;
+
+const shaftPass = new ShaderPass({
+  uniforms: {
+    tDiffuse: { value: null },
+    uLight: { value: new THREE.Vector2(0.5, 0.6) },
+    uStrength: { value: 0.5 }
+  },
+  vertexShader: /* glsl */ `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  `,
+  fragmentShader: /* glsl */ `
+    #define SAMPLES ${SHAFT_SAMPLES}
+    uniform sampler2D tDiffuse;
+    uniform vec2 uLight;
+    uniform float uStrength;
+    varying vec2 vUv;
+
+    float hash(vec2 p) {
+      return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+    }
+
+    void main() {
+      vec4 base = texture2D(tDiffuse, vUv);
+      vec2 delta = (vUv - uLight) / float(SAMPLES) * 0.6;
+
+      // Start each pixel's march at a random offset so the samples don't band.
+      vec2 uv = vUv - delta * hash(vUv * 1000.0);
+      float decay = 1.0;
+      vec3 rays = vec3(0.0);
+
+      for (int i = 0; i < SAMPLES; i++) {
+        uv -= delta;
+        vec3 s = texture2D(tDiffuse, uv).rgb;
+
+        // Only light near the lens casts shafts, not every highlight.
+        float nearLens = smoothstep(0.22, 0.0, distance(uv, uLight));
+        float bright = max(0.0, max(s.g, max(s.r, s.b)) - 0.85) * nearLens;
+
+        rays += s * bright * decay;
+        decay *= 0.955;
+      }
+
+      gl_FragColor = vec4(base.rgb + rays * (uStrength / float(SAMPLES)), base.a);
+    }
+  `
+});
+
+composer.insertPass(shaftPass, 2);
+
+// Film finish: colour grade (cool shadows, soft S-curve), vignette, a touch of
+// chromatic aberration, grain, and a fade from black for the opening.
 const lensPass = new ShaderPass({
   uniforms: {
     tDiffuse: { value: null },
     uTime: { value: 0 },
     uAberration: { value: 0.0015 },
-    uGrain: { value: REDUCED_MOTION ? 0 : 0.045 },
-    uVignette: { value: 0.55 }
+    uGrain: { value: REDUCED_MOTION ? 0 : 0.05 },
+    uVignette: { value: 0.7 },
+    uFade: { value: 0 }
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -254,6 +315,7 @@ const lensPass = new ShaderPass({
     uniform float uAberration;
     uniform float uGrain;
     uniform float uVignette;
+    uniform float uFade;
     varying vec2 vUv;
 
     float hash(vec2 p) {
@@ -267,18 +329,25 @@ const lensPass = new ShaderPass({
       float r2 = dot(d, d);
       vec2 shift = d * r2 * uAberration * 18.0;
 
-      vec3 color;
-      color.r = texture2D(tDiffuse, vUv + shift).r;
-      color.g = texture2D(tDiffuse, vUv).g;
-      color.b = texture2D(tDiffuse, vUv - shift).b;
+      vec3 c;
+      c.r = texture2D(tDiffuse, vUv + shift).r;
+      c.g = texture2D(tDiffuse, vUv).g;
+      c.b = texture2D(tDiffuse, vUv - shift).b;
+      c = clamp(c, 0.0, 1.0);
 
-      float vignette = smoothstep(0.92, 0.18, length(d) * 1.25);
-      color *= mix(1.0 - uVignette, 1.0, vignette);
+      // Grade: slightly desaturated, teal in the shadows, gentle S-curve.
+      float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
+      c = mix(vec3(l), c, 0.86);
+      c *= mix(vec3(0.8, 0.97, 1.06), vec3(1.0), smoothstep(0.0, 0.45, l));
+      c = mix(c, c * c * (3.0 - 2.0 * c), 0.35);
 
-      float grain = hash(vUv * 1400.0 + fract(uTime) * 91.0) - 0.5;
-      color += grain * uGrain;
+      float vignette = smoothstep(0.95, 0.2, length(d * vec2(1.0, 1.15)) * 1.2);
+      c *= mix(1.0 - uVignette, 1.0, vignette);
 
-      gl_FragColor = vec4(color, 1.0);
+      c += (hash(vUv * 1400.0 + fract(uTime) * 91.0) - 0.5) * uGrain;
+      c *= uFade;
+
+      gl_FragColor = vec4(c, 1.0);
     }
   `
 });
@@ -288,21 +357,21 @@ composer.addPass(lensPass);
 /* LIGHTING                              */
 /* ===================================== */
 
-scene.add(new THREE.AmbientLight(0x6f9b7e, 0.35));
+scene.add(new THREE.AmbientLight(0x4f7a62, 0.16));
 
-const keyLight = new THREE.DirectionalLight(0xdff7e6, 2.2);
+const keyLight = new THREE.DirectionalLight(0xdff7e6, 1.3);
 keyLight.position.set(4.2, 5.2, 6.6);
 scene.add(keyLight);
 
-const fillLight = new THREE.DirectionalLight(0x2a5a3d, 0.9);
+const fillLight = new THREE.DirectionalLight(0x2a5a3d, 0.45);
 fillLight.position.set(-4, 1.2, 4.2);
 scene.add(fillLight);
 
-const rimLight = new THREE.DirectionalLight(0x14ff74, 2.4);
+const rimLight = new THREE.DirectionalLight(0x14ff74, 3.4);
 rimLight.position.set(-2.6, 3.2, -4.2);
 scene.add(rimLight);
 
-const rimLightB = new THREE.DirectionalLight(0x7affb0, 1.4);
+const rimLightB = new THREE.DirectionalLight(0x9affc8, 2.2);
 rimLightB.position.set(3.4, -1.8, -3.6);
 scene.add(rimLightB);
 
@@ -374,6 +443,80 @@ function additive(map, color, opacity = 1) {
     toneMapped: false
   });
 }
+
+/* ===================================== */
+/* HAZE                                  */
+/* ===================================== */
+
+// Slow-drifting smoke behind the lantern, lit green by it. Two layers at
+// different depths give the frame parallax and atmosphere.
+function makeHaze({ z, width, height, scale, speed, intensity }) {
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: { value: 0 },
+      uIntensity: { value: intensity },
+      uScale: { value: scale },
+      uSpeed: { value: speed },
+      uColor: { value: new THREE.Color(0x3dff8c) }
+    },
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    vertexShader: /* glsl */ `
+      varying vec2 vUv;
+      void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: /* glsl */ `
+      uniform float uTime;
+      uniform float uIntensity;
+      uniform float uScale;
+      uniform float uSpeed;
+      uniform vec3 uColor;
+      varying vec2 vUv;
+
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+
+      float noise(vec2 p) {
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+                   mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+      }
+
+      float fbm(vec2 p) {
+        float v = 0.0;
+        float a = 0.5;
+        for (int i = 0; i < 5; i++) {
+          v += a * noise(p);
+          p *= 2.03;
+          a *= 0.5;
+        }
+        return v;
+      }
+
+      void main() {
+        vec2 p = vUv * vec2(uScale * 1.6, uScale) + vec2(uTime * 0.012, -uTime * 0.005) * uSpeed;
+        float n = fbm(p + fbm(p * 1.7 + uTime * 0.02 * uSpeed));
+        float mask = smoothstep(0.75, 0.05, distance(vUv, vec2(0.5, 0.55)));
+        float a = pow(n, 2.4) * mask * uIntensity;
+        gl_FragColor = vec4(uColor * a, a);
+      }
+    `
+  });
+
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, height), material);
+  mesh.position.z = z;
+  mesh.renderOrder = -1;
+  scene.add(mesh);
+  return material;
+}
+
+const hazeBack = makeHaze({ z: -4, width: 34, height: 20, scale: 3, speed: 1, intensity: 0.22 });
+const hazeFront = makeHaze({ z: -1.2, width: 20, height: 12, scale: 4.5, speed: 1.6, intensity: 0.08 });
 
 /* ===================================== */
 /* PARTICLES (GPU points)                */
@@ -668,25 +811,27 @@ async function loadAssets() {
   const progress = [0, 0];
   const report = () => {
     const value = (progress[0] + progress[1]) / 2;
-    bootFill.style.width = `${Math.round(value * 100)}%`;
-    bootStatus.textContent = value < 1 ? `${Math.round(value * 100)}%` : "Igniting…";
+    const percent = Math.round(value * 100);
+    introFill.style.width = `${percent}%`;
+    introCount.textContent = String(percent).padStart(3, "0");
+    if (value >= 1) introLabel.textContent = "Igniting";
   };
 
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
 
   const batteryMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x136b3b,
-    metalness: 0.82,
-    roughness: 0.3,
+    color: 0x0d4a29,
+    metalness: 0.92,
+    roughness: 0.26,
     clearcoat: 0.75,
     clearcoatRoughness: 0.16,
     envMapIntensity: 1.1
   });
 
   const ringMaterial = new THREE.MeshPhysicalMaterial({
-    color: 0x1b7a45,
-    metalness: 0.9,
+    color: 0x146a3b,
+    metalness: 0.94,
     roughness: 0.24,
     clearcoat: 0.85,
     clearcoatRoughness: 0.12,
@@ -788,7 +933,9 @@ function computeLayout() {
   layout.z = z;
   layout.batteryY = (0.5 - centerFrac) * 2 * t * z;
   layout.lanternBottom = centerFrac + actualHeight / 2;
-  layout.bar = clamp(h * 0.036, 14, 48);
+  // A 2.39:1 letterbox on landscape screens; slim bars on portrait phones.
+  layout.bar = aspect > 1.2 ? clamp((h - w / 2.39) / 2, 40, h * 0.16) : clamp(h * 0.055, 40, 64);
+  loaderEl.style.setProperty("--bar", `${layout.bar.toFixed(1)}px`);
   layout.floorY = h - layout.bar - h * (portrait ? 0.15 : 0.16);
 
   loaderEl.style.setProperty("--lantern-bottom", `${(layout.lanternBottom * 100).toFixed(2)}%`);
@@ -872,7 +1019,23 @@ function setStage(next) {
   loaderEl.dataset.stage = next;
 
   skipBtn.hidden = !(next === Stage.PICKUP || next === Stage.TAP);
+
+  const chapter = CHAPTERS[next];
+  if (chapter) {
+    chapterNum.textContent = chapter[0];
+    chapterName.textContent = chapter[1];
+  }
 }
+
+// Shown in the bottom letterbox, like scene markers.
+const CHAPTERS = {
+  pickup: ["01", "The Ring"],
+  tap: ["02", "The Awakening"],
+  seek: ["03", "The Lantern"],
+  docked: ["04", "The Oath"],
+  finale: ["05", "The Corps"],
+  welcome: ["05", "The Corps"]
+};
 
 const isTouchLike = () => pointer.type === "touch" || pointer.type === "pen";
 const isPlaying = () => stage === Stage.PICKUP || stage === Stage.TAP || stage === Stage.SEEK;
@@ -938,6 +1101,7 @@ function dock() {
 }
 
 function undock() {
+  audio.trackPause();
   ringBody.mode = "held";
   setStage(Stage.SEEK);
   audio.undock();
@@ -951,8 +1115,6 @@ function wakeRing() {
 
   audio.powerOn();
   haptic([30, 40, 60]);
-  hudEl.classList.add("is-flicker");
-  window.setTimeout(() => hudEl.classList.remove("is-flicker"), 1100);
 
   const x = clamp(ringBody.x, vw() * 0.3, vw() * 0.7);
   const y = clamp(ringBody.y - ringRadiusPx() * 3.4, layout.bar + 60, vh() * 0.7);
@@ -1020,9 +1182,7 @@ function hitEdge(side, speed, x, y) {
   } else if (powered && stage === Stage.SEEK && elapsed - lastPowerReport > 4) {
     // Knocking the ring later is a quick diagnostic on its readout.
     lastPowerReport = elapsed;
-    hudEl.classList.remove("is-flicker");
-    void hudEl.offsetWidth;
-    hudEl.classList.add("is-flicker");
+    cue(`Ring power · ${Math.round(charge * 100)}%`, ringBody.x, ringBody.y - ringRadiusPx() * 3, { life: 1800 });
   }
 }
 
@@ -1264,6 +1424,24 @@ function updateCharge(dt) {
 
   const charging = isCharging();
 
+  // With the oath recording loaded, holding the ring plays it and letting go
+  // pauses it; the charge and the words follow the recording.
+  if (audio.hasTrack() && stage === Stage.DOCKED) {
+    if (charging) audio.trackPlay();
+    else audio.trackPause();
+
+    if (charging) holdSeconds += dt;
+    if (wasCharging && !charging) audio.release();
+    wasCharging = charging;
+
+    const t = audio.trackTime();
+    charge = START_CHARGE + (1 - START_CHARGE) * clamp(t / TRACK_END, 0, 1);
+    oath.setTrackTime(t);
+
+    if (t >= TRACK_END) startFinish();
+    return;
+  }
+
   if (charging) {
     holdSeconds += dt;
     holdRamp += dt;
@@ -1388,7 +1566,8 @@ function updateHand() {
     pointer.inside &&
     !pointer.overButton &&
     stage !== Stage.WELCOME &&
-    stage !== Stage.LOADING;
+    stage !== Stage.LOADING &&
+    stage !== Stage.INTRO;
 
   hand.show(visible);
   loaderEl.classList.toggle("use-hand", visible);
@@ -1405,30 +1584,16 @@ function updateHand() {
 }
 
 /* ===================================== */
-/* RING HUD                              */
+/* POWER READOUT                         */
 /* ===================================== */
 
-const HUD_CIRCUMFERENCE = 2 * Math.PI * 20;
-
 function updateHud() {
-  const on = powered && stage !== Stage.FINALE && stage !== Stage.WELCOME && stage !== Stage.LOADING;
-  hudEl.classList.toggle("is-on", on);
-
   const percent = Math.round((powered ? charge : 0) * 100);
+  if (percent === lastPercent) return;
 
-  if (percent !== lastPercent) {
-    lastPercent = percent;
-    hudText.textContent = `${percent}%`;
-    hudFill.style.strokeDashoffset = (HUD_CIRCUMFERENCE * (1 - percent / 100)).toFixed(1);
-    powerText.textContent = `${percent}%`;
-  }
-
-  if (!on) return;
-
-  const r = ringRadiusPx();
-  const x = clamp(ringBody.x + r * 1.15 + 18, 36, vw() - 36);
-  const y = clamp(ringBody.y - r * 1.15 - 18, layout.bar + 36, vh() - 36);
-  hudEl.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+  lastPercent = percent;
+  powerText.textContent = String(percent).padStart(3, "0");
+  powerFill.style.width = `${percent}%`;
 }
 
 /* ===================================== */
@@ -1532,7 +1697,7 @@ function updateEnergy(time, dt) {
     0.15 + life * (proximity * 0.9 + (stage === Stage.DOCKED ? 0.8 : 0) + (charging ? 1.2 : 0)) + energy * 3.4;
   contactLight.distance = 5 + energy * 2.5;
 
-  rimLight.intensity = 2.4 + energy * 1.4;
+  rimLight.intensity = 3.4 + energy * 1.6;
 
   bloomPass.strength = 0.4 + proximity * 0.06 + energy * 0.42;
   bloomPass.radius = 0.5 + energy * 0.12;
@@ -1541,7 +1706,17 @@ function updateEnergy(time, dt) {
   lensPass.uniforms.uTime.value = time;
   lensPass.uniforms.uAberration.value = REDUCED_MOTION ? 0.0008 : 0.0012 + energy * 0.0034;
 
-  ambientEl.style.opacity = (0.1 + proximity * 0.05 + energy * 0.2).toFixed(3);
+  shaftPass.uniforms.uLight.value.set(
+    scratch.socketScreen.x / vw(),
+    1 - scratch.socketScreen.y / vh()
+  );
+  // Shafts build with the charge: barely there at rest, flooding the frame at the end.
+  shaftPass.uniforms.uStrength.value = 0.1 + proximity * 0.25 + energy * 2.4;
+
+  hazeBack.uniforms.uTime.value = time;
+  hazeFront.uniforms.uTime.value = time;
+  hazeBack.uniforms.uIntensity.value = 0.16 + energy * 0.22;
+  hazeFront.uniforms.uIntensity.value = 0.05 + energy * 0.08;
 
   // Controlled shake under load, never when the user asked for less motion.
   const strain = charging && !REDUCED_MOTION ? level * level : 0;
@@ -1662,7 +1837,7 @@ function haptic(pattern) {
 // The ring speaks in a brighter, quicker voice than the oath.
 function ringSay(text, options = {}) {
   if (oath.speaking) return;
-  voice.say(text, { rate: 1.0, pitch: 1.08, ...options });
+  voice.say(text, { rate: 1.0, pitch: 1.08, synthesize: false, ...options });
 }
 
 const oath = createOath({
@@ -1743,7 +1918,7 @@ window.addEventListener("pointerdown", event => {
   if (pointer.down) return; // ignore extra fingers
   setPointerFrom(event);
 
-  if (pointer.overButton || stage === Stage.WELCOME || stage === Stage.LOADING) return;
+  if (pointer.overButton || stage === Stage.WELCOME || stage === Stage.LOADING || stage === Stage.INTRO) return;
   if (pointer.type === "mouse" && event.button !== 0) return;
 
   pointer.down = true;
@@ -1803,7 +1978,7 @@ window.addEventListener("keydown", event => {
     return;
   }
 
-  if (stage === Stage.WELCOME || stage === Stage.LOADING) return;
+  if (stage === Stage.WELCOME || stage === Stage.LOADING || stage === Stage.INTRO) return;
 
   const step = event.shiftKey ? 70 : 28;
   const moves = {
@@ -1846,31 +2021,6 @@ window.addEventListener("keyup", event => {
 });
 
 /* ===================================== */
-/* DUST                                  */
-/* ===================================== */
-
-function createDust() {
-  const count = REDUCED_MOTION ? 16 : LOW_POWER ? 28 : 48;
-
-  for (let i = 0; i < count; i++) {
-    const dot = document.createElement("span");
-    dot.className = "dust-particle";
-
-    dot.style.left = `${Math.random() * 100}%`;
-    dot.style.top = `${Math.random() * 100}%`;
-    dot.style.setProperty("--size", `${1 + Math.random() * 2}px`);
-    dot.style.setProperty("--duration", `${5 + Math.random() * 8}s`);
-    dot.style.setProperty("--dx", `${-35 + Math.random() * 70}px`);
-    dot.style.setProperty("--dy", `${-50 + Math.random() * 100}px`);
-    dot.style.animationDelay = `${Math.random() * 7}s`;
-
-    dustContainer.appendChild(dot);
-  }
-}
-
-createDust();
-
-/* ===================================== */
 /* FINALE                                */
 /* ===================================== */
 
@@ -1893,6 +2043,7 @@ function maybeSpeakWelcome() {
   welcomeSpoken = true;
   voice.say("Welcome, Green Lantern of Sector two eight one four. Earth's guardian.", {
     clip: "vo_welcome",
+    synthesize: false,
     rate: 0.9,
     pitch: 1.0
   });
@@ -1921,6 +2072,7 @@ function updateFinish(dt) {
 
     voice.say("Ring fully charged.", {
       clip: "vo_ring_full",
+      synthesize: false,
       rate: 1.0,
       pitch: 1.08,
       onDone: () => {
@@ -2083,6 +2235,7 @@ reveal.addEventListener("pointerdown", event => {
 // tutorial is skipped the second time round.
 function resetExperience() {
   voice.stop();
+  audio.trackReset();
   constructs.clear();
   oath.reset();
   stopWelcome();
@@ -2130,12 +2283,9 @@ restart.addEventListener("click", () => {
 /* ===================================== */
 
 function syncSoundLabel() {
-  let label = "Sound on";
-  if (!audio.isUnlocked()) label = "Sound · tap to start";
-  else if (audio.isMuted()) label = "Sound off";
-
-  soundToggle.textContent = label;
-  soundToggle.setAttribute("aria-pressed", String(audio.isUnlocked() && !audio.isMuted()));
+  const on = audio.isUnlocked() && !audio.isMuted();
+  soundLabel.textContent = on ? "Sound on" : "Sound off";
+  soundToggle.setAttribute("aria-pressed", String(on));
 }
 
 function toggleSound() {
@@ -2167,6 +2317,8 @@ function announce(text) {
 
 const cameraLook = new THREE.Vector3();
 let dockView = 0;
+let openingPush = 1;
+let entered = false;
 
 function updateCamera(time, dt) {
   const parallax = pointer.type === "mouse" && pointer.inside && !REDUCED_MOTION;
@@ -2179,16 +2331,21 @@ function updateCamera(time, dt) {
 
   punch = damp(punch, 0, 3, dt);
 
+  // The opening shot: a slow push in from far back as the picture fades up.
+  openingPush = damp(openingPush, stage === Stage.INTRO || stage === Stage.LOADING ? 1 : 0, 0.55, dt);
+  lensPass.uniforms.uFade.value = damp(lensPass.uniforms.uFade.value, entered ? 1 : 0, 0.9, dt);
+
   // Slow dolly toward the lens as the charge builds, a big push at the finale.
   const level = powered ? charge : 0;
-  const zTarget = layout.z - level * 0.55 - attractionLevel * 0.1 - build * 0.6 - punch;
+  const zTarget = layout.z - level * 0.55 - attractionLevel * 0.1 - build * 0.6 - punch + openingPush * 7;
 
   let xTarget = 0;
   let yTarget = 0;
 
   if (!REDUCED_MOTION) {
-    xTarget = px * 0.18 + Math.sin(time * 0.37) * 0.05;
-    yTarget = -py * 0.1 + Math.cos(time * 0.29) * 0.04;
+    // A slow, handheld-feeling drift, plus a little parallax from the mouse.
+    xTarget = px * 0.14 + Math.sin(time * 0.11) * 0.22 + Math.sin(time * 0.37) * 0.04;
+    yTarget = -py * 0.08 + Math.cos(time * 0.09) * 0.12 + openingPush * 0.8;
   }
 
   // On the lantern, swing round to a three-quarter view so you can see the
@@ -2274,15 +2431,38 @@ loadAssets()
     ring.quaternion.copy(quat.rest);
 
     ready = true;
-    bootEl.classList.add("is-done");
-    document.body.classList.add("is-ready");
-    setStage(Stage.PICKUP);
+    setStage(Stage.INTRO);
+
+    // Let the counter sit at 100 for a beat, then bring up the title card.
+    window.setTimeout(() => {
+      introEl.classList.add("is-ready");
+      enterBtn.focus({ preventScroll: true });
+    }, 700);
   })
   .catch(error => {
     console.error(error);
-    bootEl.classList.add("is-error");
-    bootStatus.textContent = "Couldn't load the lantern. Serve this folder over http (not file://) and reload.";
+    introEl.classList.add("is-error");
+    introLabel.textContent = "Couldn't load the lantern. Serve this folder over http (not file://) and reload.";
   });
+
+// Entering is a real click, so it also unlocks sound and voice.
+function enter(withSound) {
+  if (stage !== Stage.INTRO) return;
+
+  unlockMedia();
+  if (!withSound && !audio.isMuted()) toggleSound();
+  if (withSound && audio.isMuted()) toggleSound();
+
+  entered = true;
+  introEl.classList.add("is-gone");
+  loaderEl.classList.add("is-entered");
+  enterBtn.blur();
+
+  pendingStage = { stage: Stage.PICKUP, at: elapsed + 2.2 };
+}
+
+enterBtn.addEventListener("click", () => enter(true));
+enterQuiet.addEventListener("click", () => enter(false));
 
 requestAnimationFrame(animate);
 

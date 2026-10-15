@@ -107,7 +107,9 @@ export function createVoice({ audio = null, onSpeakingChange = () => {} } = {}) 
 
   // Speak `text`, calling onWord(index) as each word is reached and onDone()
   // once at the end. Returns a handle with cancel().
-  function say(text, { rate = 0.92, pitch = 0.9, clip = "", onWord, onDone } = {}) {
+  // `synthesize: false` means a recording or nothing: the words still appear
+  // on time, but the browser's built-in voice is never used.
+  function say(text, { rate = 0.92, pitch = 0.9, clip = "", synthesize = true, onWord, onDone } = {}) {
     stop();
 
     const words = [...text.matchAll(/\S+/g)].map(match => ({
@@ -199,7 +201,7 @@ export function createVoice({ audio = null, onSpeakingChange = () => {} } = {}) 
       later(finish, total + 0.45);
     };
 
-    if (!synth || muted) {
+    if (!synth || muted || !synthesize) {
       silent();
       return job;
     }

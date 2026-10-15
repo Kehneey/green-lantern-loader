@@ -17,7 +17,8 @@ const SAMPLES = [
   "sfx_pickup", "sfx_knock_1", "sfx_knock_2", "sfx_knock_3", "sfx_drop",
   "sfx_power_on", "sfx_swish", "sfx_lock", "sfx_release", "sfx_oath_hit",
   "sfx_riser", "sfx_impact", "sfx_construct", "sfx_ui",
-  "loop_ambience", "loop_charge", "loop_music"
+  "loop_ambience", "loop_charge", "loop_music",
+  "oath_track"
 ];
 
 export function createAudio() {
@@ -356,6 +357,65 @@ export function createAudio() {
 
   let voiceSource = null;
 
+  /* ------------------------------------- */
+  /* Oath track                            */
+  /* ------------------------------------- */
+
+  // A full spoken oath (oath_track) that plays while the ring is held on the
+  // lantern and pauses when it is let go, resuming where it stopped.
+  const track = { src: null, gain: null, offset: 0, startedAt: 0, playing: false };
+
+  const hasTrack = () => ready && has("oath_track");
+
+  function trackTime() {
+    if (!track.playing) return track.offset;
+    return track.offset + (ctx.currentTime - track.startedAt);
+  }
+
+  function trackPlay() {
+    if (!hasTrack() || track.playing) return;
+
+    const buffer = buffers.get("oath_track");
+    if (track.offset >= buffer.duration) return;
+
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const g = gain(0);
+    src.connect(g);
+    g.connect(bus);
+
+    const t = ctx.currentTime;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(1, t + 0.08);
+    src.start(t, track.offset);
+
+    track.src = src;
+    track.gain = g;
+    track.startedAt = t;
+    track.playing = true;
+    duck(true);
+  }
+
+  function trackPause() {
+    if (!track.playing) return;
+
+    track.offset = trackTime();
+    track.playing = false;
+
+    const t = ctx.currentTime;
+    const { src, gain: g } = track;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(g.gain.value, t);
+    g.gain.linearRampToValueAtTime(0, t + 0.12);
+    src.stop(t + 0.14);
+    duck(false);
+  }
+
+  function trackReset() {
+    trackPause();
+    track.offset = 0;
+  }
+
   function stopVoiceClip() {
     if (voiceSource) {
       try {
@@ -484,6 +544,11 @@ export function createAudio() {
     duck,
     voiceClip,
     stopVoiceClip,
+    hasTrack,
+    trackTime,
+    trackPlay,
+    trackPause,
+    trackReset,
     knock,
     drop,
     powerOn,

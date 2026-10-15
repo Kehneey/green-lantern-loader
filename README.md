@@ -4,6 +4,8 @@ An interactive Three.js loader: wake the power ring, charge it on the lantern wh
 
 ## The experience
 
+It opens like a film site: a load counter, a title card and **Enter** (with or without sound). Then the picture fades up in 2.39:1 letterbox with chapter markers and a ring-power timecode along the bottom.
+
 1. **Pick up the ring.** It lies dead at the bottom of the screen. The mouse pointer becomes a green glove: grab the ring (click it, or press and drag). On a phone, touch and drag it; it floats just above your finger so you can see it.
 2. **Knock it against the side of the screen.** Edges glow to show where. A proper knock flashes light at the edge, the ring flickers awake and reports: "Ring power at two percent. Recharge required."
 3. **Take it to the lantern.** As it nears the lens the ring turns its head toward it, then seats head-first in the lens while the camera swings round to a three-quarter view.
@@ -50,9 +52,11 @@ then open http://localhost:8123. VS Code's Live Server works too.
 
 ## Sound and voice
 
-Drop recordings into `assets/audio/` using the names in `AUDIO_PROMPTS.md` (`.mp3`, `.wav` or `.ogg`). Each file is picked up automatically; anything missing uses a built-in synthesised sound, and voice lines fall back to the browser's speech synthesis. Trim silence from voice files: the on-screen words are timed across the clip's length. The music ducks while the voice speaks.
+**The oath recording.** Put a full spoken oath at `assets/audio/oath_track.mp3`. Holding the ring on the lantern plays it, letting go pauses it, and the charge and the words on screen follow the recording. Word timing is set in `TRACK_CUES` at the top of `oath.js` (measured for the current take). This file is git-ignored, because the current take is a third-party recording; only publish it if you have the rights.
 
-Browsers only allow sound after a tap or click, so it starts on your first touch (or tap the Sound button). With sound off, the oath still appears word by word at speaking pace.
+Without the track, the oath lines use `vo_oath_1`…`vo_oath_4` (or the browser's speech as a last resort). The ring's own lines (`vo_ring_low`, `vo_ring_full`, `vo_welcome`) play only from recordings; there is no robotic fallback. See `AUDIO_PROMPTS.md` for all file names and prompts. Missing sound effects use built-in synthesised stand-ins.
+
+Clicking **Enter** unlocks sound in every browser, including iOS.
 
 `prefers-reduced-motion` is respected: no camera sway, shake, grain or hard flash.
 
