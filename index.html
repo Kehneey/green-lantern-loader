@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Bangers&family=Inter:wght@400;500;600;700;800&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
     />
     <link rel="stylesheet" href="style.css" />
 
@@ -68,9 +68,9 @@
         <span id="hudText">0%</span>
       </div>
 
-      <section class="comic-oath" id="comicOath" aria-label="The Green Lantern oath"></section>
+      <section class="oath" id="oath" aria-label="The Green Lantern oath"></section>
 
-      <div class="bursts" id="bursts" aria-hidden="true"></div>
+      <div class="cues" id="cues" aria-hidden="true"></div>
 
       <p class="prompt" id="prompt"></p>
       <div class="sr-only" id="srStatus" role="status" aria-live="polite"></div>
@@ -117,9 +117,11 @@
             <button id="restart" type="button">Recharge</button>
           </div>
 
-          <p class="reveal-hint">Tap anywhere to summon a construct</p>
+          <p class="reveal-hint">Tap anywhere to build a construct</p>
         </div>
       </section>
+
+      <div class="constructs" id="constructs" aria-hidden="true"></div>
 
       <div class="boot" id="boot">
         <p class="boot-title">FORGING THE RING</p>

@@ -5,10 +5,12 @@ An interactive Three.js loader: wake the power ring, charge it on the lantern wh
 ## The experience
 
 1. **Pick up the ring.** It lies dead at the bottom of the screen. The mouse pointer becomes a green glove: grab the ring (click it, or press and drag). On a phone, touch and drag it; it floats just above your finger so you can see it.
-2. **Knock it against the side of the screen.** Edges glow to show where. A proper knock goes *KLANG!*, the ring flickers awake and reports: "Ring power at two percent. Recharge required."
-3. **Take it to the lantern.** The lens pulls the ring in and it locks on.
-4. **Hold to charge.** As the charge climbs, the oath is spoken line by line and each word pops onto the screen in comic lettering as it is said. Let go and the charge pauses (and slowly drains); the oath never repeats or talks over itself, and the ring will not finish until the whole oath has been said.
+2. **Knock it against the side of the screen.** Edges glow to show where. A proper knock flashes light at the edge, the ring flickers awake and reports: "Ring power at two percent. Recharge required."
+3. **Take it to the lantern.** As it nears the lens the ring turns its head toward it, then seats head-first in the lens while the camera swings round to a three-quarter view.
+4. **Hold to charge.** As the charge climbs, the oath is spoken line by line and each word resolves onto the screen in cinematic type as it is said. Let go and the charge pauses (and slowly drains); the oath never repeats or talks over itself, and the ring will not finish until the whole oath has been said.
 5. **Finale.** "Ring fully charged." Flash, shockwave, then the welcome page: *Welcome, Green Lantern of Sector 2814. Earth's guardian.*
+
+On the welcome page, tap anywhere to build a construct: a blueprint of the object appears, its parts fly in and lock into place one by one, and the finished construct pulses, is named, then breaks apart.
 
 If you hesitate, a ghost glove demonstrates the next move. Drop the ring and it falls and bounces; you can even throw it at the edge. Knock it again later for a quick power reading.
 
@@ -29,8 +31,10 @@ If you hesitate, a ghost glove demonstrates the next move. Drop the ring and it 
 - `index.html`, `style.css`
 - `script.js`: scene, stages, input, ring physics, charge, finale, welcome page
 - `voice.js`: speech synthesis; picks the most natural English voice and reports each word as it is spoken
-- `oath.js`: the spoken comic-lettered oath, queued line by line
-- `audio.js`: synthesised sound (Web Audio, no audio files)
+- `oath.js`: the spoken oath, queued line by line
+- `constructs.js`: green-light constructs that assemble from parts on the welcome page
+- `audio.js`: plays the recordings in `assets/audio/`, with synthesised stand-ins for anything missing
+- `AUDIO_PROMPTS.md`: exact prompts and file names for generating the voice-over (and optional sound effects)
 - `hand.js`: the glove cursor and the ghost demonstration glove
 - `assets/green_lantern.glb`, `assets/green-lantern-ring.glb`: the comic battery and ring, meshopt-compressed (about 3 MB together, down from 19 MB)
 
@@ -46,11 +50,11 @@ then open http://localhost:8123. VS Code's Live Server works too.
 
 ## Sound and voice
 
-Everything is generated in the browser: a drone, the ring's swish as you swing it, the metal clank on the edge, the ring powering on, the lock-on, a charge hum that rises with the charge, a low hit under each word of the oath, and the finale boom. The music ducks while the voice speaks.
+Drop recordings into `assets/audio/` using the names in `AUDIO_PROMPTS.md` (`.mp3`, `.wav` or `.ogg`). Each file is picked up automatically; anything missing uses a built-in synthesised sound, and voice lines fall back to the browser's speech synthesis. Trim silence from voice files: the on-screen words are timed across the clip's length. The music ducks while the voice speaks.
 
-The voice is the device's built-in speech synthesis, so it varies: Edge's "Natural" voices and Safari's voices sound best. Browsers only allow sound after a tap or click, so it starts on your first touch (or tap the Sound button). With sound off, the oath still appears word by word at speaking pace.
+Browsers only allow sound after a tap or click, so it starts on your first touch (or tap the Sound button). With sound off, the oath still appears word by word at speaking pace.
 
-`prefers-reduced-motion` is respected: no camera sway, shake, grain, pop-in or hard flash.
+`prefers-reduced-motion` is respected: no camera sway, shake, grain or hard flash.
 
 ## Tuning
 

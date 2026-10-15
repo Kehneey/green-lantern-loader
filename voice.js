@@ -1,4 +1,5 @@
-// Spoken lines using the browser's built-in speech synthesis.
+// Spoken lines. A recorded clip from assets/audio/ is used when it exists;
+// otherwise the browser's built-in speech synthesis speaks the line.
 //
 // - Picks the most natural English voice the device offers.
 // - Reports each word as it is spoken (boundary events), with a timed
@@ -26,7 +27,7 @@ const PREFERRED = [
   /Google US English/i
 ];
 
-export function createVoice({ onSpeakingChange = () => {} } = {}) {
+export function createVoice({ audio = null, onSpeakingChange = () => {} } = {}) {
   const synth = "speechSynthesis" in window ? window.speechSynthesis : null;
 
   let voice = null;
@@ -101,11 +102,12 @@ export function createVoice({ onSpeakingChange = () => {} } = {}) {
     }
 
     if (synth && (synth.speaking || synth.pending)) synth.cancel();
+    audio?.stopVoiceClip();
   }
 
   // Speak `text`, calling onWord(index) as each word is reached and onDone()
   // once at the end. Returns a handle with cancel().
-  function say(text, { rate = 0.92, pitch = 0.9, onWord, onDone } = {}) {
+  function say(text, { rate = 0.92, pitch = 0.9, clip = "", onWord, onDone } = {}) {
     stop();
 
     const words = [...text.matchAll(/\S+/g)].map(match => ({
@@ -174,6 +176,23 @@ export function createVoice({ onSpeakingChange = () => {} } = {}) {
 
       return t;
     };
+
+    // A recorded clip: spread the words across it, weighted by how long each
+    // one takes to say. Trim silence from the files so this lines up.
+    if (clip && audio) {
+      const duration = audio.voiceClip(clip, () => finish());
+
+      if (duration > 0) {
+        let t = 0;
+        words.forEach((word, index) => {
+          later(() => reveal(index), (t / estimate) * duration * 0.96);
+          t += wordTime(word);
+        });
+
+        later(finish, duration + 0.8);
+        return job;
+      }
+    }
 
     const silent = () => {
       const total = runClock(1.12);

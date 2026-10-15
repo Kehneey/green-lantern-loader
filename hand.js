@@ -1,14 +1,14 @@
 // The glove cursor that replaces the mouse pointer, and a "ghost" glove that
 // demonstrates each gesture when the user hesitates.
 //
-// Both are plain DOM/SVG drawn in a comic style. The hotspot is the centre of
+// Both are plain DOM/SVG drawn as thin, glowing hard-light line art. The hotspot is the centre of
 // the palm, so a grabbed ring sits in the hand.
 
-const GLOVE = "#1f9d55";
-const INK = "#03130a";
-const SHINE = "#b6ffd0";
+const GLOVE = "rgba(4, 28, 14, 0.55)";
+const INK = "#a8ffc9";
+const SHINE = "#e6fff0";
 
-const stroke = `stroke="${INK}" stroke-width="2.6" stroke-linejoin="round"`;
+const stroke = `stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"`;
 
 const OPEN_HAND = `
 <svg class="hand-open" viewBox="0 0 64 64" aria-hidden="true">
@@ -18,7 +18,7 @@ const OPEN_HAND = `
   <rect x="37" y="8" width="8.5" height="27" rx="4.25" transform="rotate(7 41 30)" fill="${GLOVE}" ${stroke}/>
   <rect x="45" y="15" width="7.5" height="21" rx="3.75" transform="rotate(15 48 31)" fill="${GLOVE}" ${stroke}/>
   <rect x="16" y="27" width="34" height="26" rx="11" fill="${GLOVE}" ${stroke}/>
-  <rect x="18" y="50" width="30" height="10" rx="3" fill="#0f5c31" ${stroke}/>
+  <rect x="18" y="50" width="30" height="10" rx="3" fill="${GLOVE}" ${stroke}/>
   <path d="M30.5 9v12M39.5 12v10M22 15l1.2 9" stroke="${SHINE}" stroke-width="1.6" stroke-linecap="round" opacity=".45"/>
   <circle cx="33" cy="39" r="5.5" fill="none" stroke="${SHINE}" stroke-width="1.4" opacity=".35"/>
 </svg>`;
@@ -31,7 +31,7 @@ const FIST = `
   <rect x="33" y="16" width="9.5" height="17" rx="4.75" fill="${GLOVE}" ${stroke}/>
   <rect x="42" y="19" width="8.5" height="15" rx="4.25" fill="${GLOVE}" ${stroke}/>
   <rect x="11" y="33" width="27" height="10" rx="5" fill="${GLOVE}" ${stroke}/>
-  <rect x="18" y="48" width="28" height="10" rx="3" fill="#0f5c31" ${stroke}/>
+  <rect x="18" y="48" width="28" height="10" rx="3" fill="${GLOVE}" ${stroke}/>
   <path d="M18 21v6M27 19v6M36 20v6" stroke="${SHINE}" stroke-width="1.6" stroke-linecap="round" opacity=".45"/>
 </svg>`;
 

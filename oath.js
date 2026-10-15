@@ -2,58 +2,44 @@
 //
 // Each line is queued when the charge crosses its threshold. Lines are never
 // spoken over each other or repeated: the next one waits for the previous one
-// to finish. Words pop onto the screen in comic lettering as they are said.
+// to finish. Words resolve onto the screen as they are said.
 
 const LINES = [
-  { text: "In brightest day, in blackest night,", hot: ["brightest", "blackest", "night"] },
-  { text: "No evil shall escape my sight.", hot: ["evil", "escape", "sight"] },
-  { text: "Let those who worship evil's might,", hot: ["worship", "evil's", "might"] },
-  { text: "Beware my power... Green Lantern's light!", hot: ["power", "green", "lantern's", "light"] }
+  { text: "In brightest day, in blackest night,", clip: "vo_oath_1", key: ["brightest", "blackest", "night"] },
+  { text: "No evil shall escape my sight.", clip: "vo_oath_2", key: ["evil", "sight"] },
+  { text: "Let those who worship evil's might,", clip: "vo_oath_3", key: ["evil's", "might"] },
+  { text: "Beware my power... Green Lantern's light!", clip: "vo_oath_4", key: ["power", "green", "lantern's", "light"] }
 ];
 
 const plain = word => word.toLowerCase().replace(/[^a-z']/g, "");
 
-export function createOath({ container, voice, audio, reducedMotion = false, onHotWord = () => {} }) {
-  const lines = [];
-
-  LINES.forEach((line, index) => {
+export function createOath({ container, voice, audio, onKeyWord = () => {} }) {
+  const lines = LINES.map((line, index) => {
     const el = document.createElement("p");
-    el.className = "comic-line";
+    el.className = "oath-line";
     if (index === LINES.length - 1) el.classList.add("is-final");
     el.setAttribute("aria-hidden", "true");
 
-    const words = line.text.split(/\s+/).map((word, i) => {
+    const words = line.text.split(/\s+/).map(word => {
       const span = document.createElement("span");
-      span.className = "comic-word";
-      if (line.hot.includes(plain(word))) span.classList.add("is-hot");
-
-      // A slight, fixed tilt per word gives the hand-lettered comic feel.
-      const tilt = ((i * 37 + index * 11) % 7) - 3;
-      span.style.setProperty("--tilt", `${tilt * 0.8}deg`);
+      span.className = "oath-word";
+      if (line.key.includes(plain(word))) span.classList.add("is-key");
       span.textContent = word;
-
       el.appendChild(span);
       el.appendChild(document.createTextNode(" "));
       return span;
     });
 
     container.appendChild(el);
-    lines.push({ el, words, text: line.text });
+    return { el, words };
   });
 
-  // Screen readers get the whole oath once, rather than word by word.
+  // Screen readers get each line once, rather than word by word.
   const reader = document.createElement("p");
   reader.className = "sr-only";
   container.appendChild(reader);
 
-  const state = {
-    queue: [],
-    started: new Set(),
-    speaking: false,
-    spoken: 0,
-    done: false,
-    doneTimer: 0
-  };
+  const state = { queue: [], started: new Set(), speaking: false, spoken: 0, done: false, doneTimer: 0 };
 
   function setCurrent(index) {
     lines.forEach((line, i) => {
@@ -63,15 +49,11 @@ export function createOath({ container, voice, audio, reducedMotion = false, onH
     });
   }
 
-  function popWord(lineIndex, wordIndex) {
+  function showWord(lineIndex, wordIndex) {
     const word = lines[lineIndex].words[wordIndex];
     if (!word || word.classList.contains("is-on")) return;
-
     word.classList.add("is-on");
-
-    const hot = word.classList.contains("is-hot");
-    audio.wordHit(hot, lineIndex === LINES.length - 1);
-    if (hot && !reducedMotion) onHotWord(word);
+    if (word.classList.contains("is-key")) onKeyWord(word);
   }
 
   function pump() {
@@ -83,23 +65,23 @@ export function createOath({ container, voice, audio, reducedMotion = false, onH
     state.started.add(index);
     state.speaking = true;
     setCurrent(index);
-    audio.oath(index, LINES.length);
-
+    audio.oathHit(index, LINES.length);
     reader.textContent = LINES.slice(0, index + 1).map(line => line.text).join(" ");
 
-    voice.say(lines[index].text, {
+    voice.say(LINES[index].text, {
+      clip: LINES[index].clip,
       rate: final ? 0.84 : 0.88,
       pitch: final ? 0.8 : 0.84,
-      onWord: word => popWord(index, word),
+      onWord: word => showWord(index, word),
       onDone: () => {
         state.speaking = false;
         state.spoken += 1;
 
         if (state.spoken === LINES.length) {
-          // Let the last word land before the finale can begin.
+          // Let the last word settle before the finale can begin.
           state.doneTimer = window.setTimeout(() => {
             state.done = true;
-          }, 600);
+          }, 700);
         }
 
         pump();
@@ -135,7 +117,6 @@ export function createOath({ container, voice, audio, reducedMotion = false, onH
   return {
     trigger,
     reset,
-    count: LINES.length,
     get done() {
       return state.done;
     },

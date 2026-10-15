@@ -12,6 +12,7 @@ import { createAudio } from "./audio.js";
 import { createVoice } from "./voice.js";
 import { createOath } from "./oath.js";
 import { createHand, createGhost } from "./hand.js";
+import { createConstructs } from "./constructs.js";
 
 /* ===================================== */
 /* DOM                                   */
@@ -44,7 +45,8 @@ const hudEl = $("ringHud");
 const hudFill = $("hudFill");
 const hudText = $("hudText");
 const markerEl = $("pickupMarker");
-const burstsEl = $("bursts");
+const cuesEl = $("cues");
+const constructsEl = $("constructs");
 const edgeLeft = $("edgeLeft");
 const edgeRight = $("edgeRight");
 const callsignEl = $("callsign");
@@ -177,7 +179,7 @@ let lastPrompt = null;
 let lastPercent = -1;
 
 const audio = createAudio();
-const voice = createVoice({ onSpeakingChange: speaking => audio.duck(speaking) });
+const voice = createVoice({ audio, onSpeakingChange: speaking => audio.duck(speaking) });
 
 /* ===================================== */
 /* SCENE                                 */
@@ -806,6 +808,7 @@ function resizeRenderer() {
 
   particleMaterial.uniforms.uScale.value = pointScale();
   computeLayout();
+  constructs.resize();
 
   ringBody.x = clamp(ringBody.x, 0, w);
   if (ringBody.mode === "rest") ringBody.y = layout.floorY;
@@ -906,6 +909,7 @@ function grab() {
 function drop() {
   // Keep the hand's velocity: you can throw the ring.
   ringBody.mode = "falling";
+  ringBody.landed = false;
   ringBody.vx = clamp(ringBody.vx, -4200, 4200);
   ringBody.vy = clamp(ringBody.vy, -4200, 4200);
   idle = 0;
@@ -917,7 +921,8 @@ function nudge() {
     ringBody.mode = "falling";
     ringBody.vy = -520;
     ringBody.vx = (pointer.x - ringBody.x) * 0.6;
-    audio.clank(0.15);
+    ringBody.landed = false;
+    audio.drop(0.2);
   }
 
   idle = HINT_DELAY;
@@ -949,11 +954,11 @@ function wakeRing() {
   hudEl.classList.add("is-flicker");
   window.setTimeout(() => hudEl.classList.remove("is-flicker"), 1100);
 
-  const x = clamp(ringBody.x, vw() * 0.28, vw() * 0.72);
-  const y = clamp(ringBody.y - ringRadiusPx() * 3.2, layout.bar + 60, vh() * 0.7);
-  comicBurst("RING POWER: 2%", x, y, { size: clamp(vw() * 0.035, 22, 40), rot: -3, caption: true, life: 2600 });
+  const x = clamp(ringBody.x, vw() * 0.3, vw() * 0.7);
+  const y = clamp(ringBody.y - ringRadiusPx() * 3.4, layout.bar + 60, vh() * 0.7);
+  cue("Ring power · 2%", x, y, { sub: "Recharge required", life: 3200 });
 
-  ringSay("Ring power at two percent. Recharge required.");
+  ringSay("Ring power at two percent. Recharge required.", { clip: "vo_ring_low" });
   announce("Ring power at two percent. Take the ring to the lantern.");
 
   pendingStage = { stage: Stage.SEEK, at: elapsed + 1.4 };
@@ -980,8 +985,6 @@ skipBtn.addEventListener("click", () => {
 /* EDGE KNOCKS                           */
 /* ===================================== */
 
-const KNOCKS = ["KLANG!", "TING!", "CLANK!", "KA-TINK!", "BONK!"];
-
 function hitEdge(side, speed, x, y) {
   if (elapsed - ringBody.lastHit < 0.35 || speed < 90) return;
   ringBody.lastHit = elapsed;
@@ -989,7 +992,7 @@ function hitEdge(side, speed, x, y) {
   const strength = clamp(speed / 2400, 0.2, 1);
   const knock = speed >= KNOCK_SPEED;
 
-  audio.clank(knock ? strength : strength * 0.45);
+  audio.knock(knock ? strength : strength * 0.45);
 
   const edge = side === "left" ? edgeLeft : side === "right" ? edgeRight : null;
   if (edge) {
@@ -1000,7 +1003,7 @@ function hitEdge(side, speed, x, y) {
   }
 
   if (!knock) {
-    if (stage === Stage.TAP) promptOverride = { text: "Harder! Give it a proper knock", until: elapsed + 2.2 };
+    if (stage === Stage.TAP) promptOverride = { text: "Harder. Give it a proper knock", until: elapsed + 2.2 };
     return;
   }
 
@@ -1008,24 +1011,18 @@ function hitEdge(side, speed, x, y) {
   haptic([14, 30, 14]);
   shake(0.45 + strength * 0.6);
 
-  const inset = 90;
-  const bx = side === "left" ? x + inset : side === "right" ? x - inset : x;
-  const by = side === "top" ? y + inset : y;
-  const rot = side === "left" ? -12 : side === "right" ? 10 : -4;
-  const small = Math.min(vw(), vh()) < 520;
-  comicBurst(pick(KNOCKS), bx, by, { size: (small ? 24 : 32) + strength * (small ? 18 : 32), rot });
+  impactFlash(x, y, strength);
 
   emitSparks(REDUCED_MOTION ? 6 : 22, 1.4, screenToWorld(x, y, ring.position.z, scratch.point));
 
   if (stage === Stage.TAP && !powered) {
     wakeRing();
-  } else if (powered && stage === Stage.SEEK && elapsed - lastPowerReport > 6) {
-    // Knocking the ring later is a quick diagnostic.
+  } else if (powered && stage === Stage.SEEK && elapsed - lastPowerReport > 4) {
+    // Knocking the ring later is a quick diagnostic on its readout.
     lastPowerReport = elapsed;
     hudEl.classList.remove("is-flicker");
     void hudEl.offsetWidth;
     hudEl.classList.add("is-flicker");
-    ringSay(`Ring power at ${Math.round(charge * 100)} percent.`);
   }
 }
 
@@ -1096,7 +1093,9 @@ function updateRingBody(dt) {
       ringBody.y = floor;
 
       if (ringBody.vy > 240) {
-        audio.clank(Math.min(0.5, ringBody.vy / 3200));
+        // The recorded drop already contains its own bounces.
+        if (!ringBody.landed) audio.drop(Math.min(1, ringBody.vy / 2400));
+        ringBody.landed = true;
         ringBody.vy = -ringBody.vy * 0.32;
         ringBody.vx *= 0.7;
         haptic(6);
@@ -1119,9 +1118,25 @@ function updateRingBody(dt) {
 /* RING (3D)                             */
 /* ===================================== */
 
+// The ring model's head (the emblem) faces +Z and the finger hole runs along Y.
 const REST_ROT = new THREE.Euler(0.78, -0.25, 0.1);
 const HELD_ROT = new THREE.Euler(0.24, -0.5, 0.05);
-const SNAP_ROT = new THREE.Euler(0.38, -0.38, 0.04);
+// On the lantern the head goes *into* the lens, the way a fist pushes it in:
+// head turned to face -Z, finger hole running sideways, so from the camera's
+// three-quarter view you see the open band standing out of the lens.
+const DOCK_ROT = new THREE.Euler(0.12, Math.PI, Math.PI / 2);
+
+const quat = {
+  rest: new THREE.Quaternion().setFromEuler(REST_ROT),
+  held: new THREE.Quaternion().setFromEuler(HELD_ROT),
+  dock: new THREE.Quaternion().setFromEuler(DOCK_ROT),
+  target: new THREE.Quaternion(),
+  tilt: new THREE.Quaternion(),
+  euler: new THREE.Euler()
+};
+
+// Half the ring's depth along its head axis, in world units at scale 1.
+const RING_HALF_DEPTH = RING_DIAMETER * 0.5;
 
 function damp(current, target, lambda, dt) {
   return THREE.MathUtils.lerp(current, target, 1 - Math.exp(-lambda * dt));
@@ -1131,16 +1146,21 @@ function updateRing3D(time, dt) {
   const onLantern = ringBody.mode === "docked" || stage === Stage.FINALE || stage === Stage.WELCOME;
   const charging = isCharging();
 
-  let rot = HELD_ROT;
   let scaleTarget = 1;
   let lambda = 30;
 
   if (onLantern) {
     const build = stage === Stage.FINALE ? THREE.MathUtils.smoothstep(finishTime / FINISH_PEAK, 0, 1) : 0;
+    scaleTarget = stage === Stage.DOCKED ? 1.3 : 1.2;
+
+    // Seat the head inside the lens: pushed a little deeper while charging,
+    // and all the way home at the finale.
+    const depth = RING_HALF_DEPTH * ring.scale.x;
+    const inset = stage === Stage.FINALE ? 0.1 + build * 0.06 : charging ? 0.12 : 0.04;
     scratch.target.copy(scratch.socketWorld);
-    scratch.target.z += stage === Stage.FINALE ? 0.12 - build * 0.08 : charging ? 0.14 : 0.26;
-    rot = SNAP_ROT;
-    scaleTarget = stage === Stage.DOCKED ? 1.4 : 1.25;
+    scratch.target.z += depth - inset;
+
+    quat.target.copy(quat.dock);
     lambda = 11;
   } else {
     let sx = ringBody.x;
@@ -1155,9 +1175,16 @@ function updateRing3D(time, dt) {
 
     const held = ringBody.mode === "held";
     screenToWorld(sx, sy, held ? RING_Z_HELD : RING_Z_REST, scratch.target);
-    rot = held ? HELD_ROT : REST_ROT;
     scaleTarget = held ? 1.1 : 1;
     lambda = held ? 30 : 40;
+
+    // Near the lantern the ring turns its head toward the lens, ready to go in.
+    if (held) {
+      const turn = stage === Stage.SEEK ? Math.pow(attractionLevel, 1.5) : 0;
+      quat.target.copy(quat.held).slerp(quat.dock, turn);
+    } else {
+      quat.target.copy(quat.rest);
+    }
   }
 
   ring.position.x = damp(ring.position.x, scratch.target.x, lambda, dt);
@@ -1171,9 +1198,10 @@ function updateRing3D(time, dt) {
   const tiltX = moving ? clamp(ringBody.vy * 0.0002, -0.4, 0.4) : 0;
   const bob = ringBody.mode === "rest" ? Math.sin(time * 1.6) * 0.04 : 0;
 
-  ring.rotation.x = damp(ring.rotation.x, rot.x + tiltX + bob, 9, dt);
-  ring.rotation.y = damp(ring.rotation.y, rot.y, 9, dt);
-  ring.rotation.z = damp(ring.rotation.z, rot.z + tiltZ, 9, dt);
+  quat.euler.set(tiltX + bob, 0, tiltZ);
+  quat.tilt.setFromEuler(quat.euler);
+  quat.target.premultiply(quat.tilt);
+  ring.quaternion.slerp(quat.target, 1 - Math.exp(-9 * dt));
 
   // Under load the ring trembles; in the finale it vibrates harder.
   if (!REDUCED_MOTION && stage === Stage.FINALE) {
@@ -1456,11 +1484,12 @@ function updateEnergy(time, dt) {
   lensGlow.material.opacity = Math.min(
     0.85,
     (0.08 + proximity * 0.12 + energy * (0.38 + pulse * 0.14) + flicker) *
-      (stage === Stage.DOCKED ? 0.7 : 1)
+      (stage === Stage.DOCKED ? 0.45 : 1)
   );
 
   lensHalo.scale.setScalar(1.3 + proximity * 0.3 + energy * 1.1);
-  lensHalo.material.opacity = Math.min(0.7, 0.08 + proximity * 0.14 + energy * 0.3);
+  lensHalo.material.opacity =
+    Math.min(0.7, 0.08 + proximity * 0.14 + energy * 0.3) * (stage === Stage.DOCKED ? 0.6 : 1);
 
   flare.scale.set(1.4 + energy * 4.6, 0.08 + energy * 0.16, 1);
   flare.material.opacity = Math.min(1, Math.max(0, energy - 0.12) * 0.9 + (build > 0 ? 0.1 : 0));
@@ -1559,33 +1588,42 @@ function pick(list, avoid) {
   return value;
 }
 
-// A jagged comic starburst as a CSS clip-path.
-function starPolygon(points = 13, depth = 0.3) {
-  const corners = [];
-  for (let i = 0; i < points * 2; i++) {
-    const angle = (i / (points * 2)) * Math.PI * 2;
-    const radius = i % 2 === 0 ? 50 : 50 * (1 - depth - Math.random() * 0.14);
-    corners.push(`${(50 + Math.cos(angle) * radius).toFixed(1)}% ${(50 + Math.sin(angle) * radius).toFixed(1)}%`);
+// A short cinematic caption: thin, wide-tracked type that resolves in and out.
+function cue(text, x, y, { sub = "", life = 2600, title = false } = {}) {
+  const el = document.createElement("div");
+  el.className = title ? "cue is-title" : "cue";
+  el.style.setProperty("--life", `${life}ms`);
+
+  const main = document.createElement("span");
+  main.className = "cue-main";
+  main.textContent = text;
+  el.appendChild(main);
+
+  if (sub) {
+    const small = document.createElement("span");
+    small.className = "cue-sub";
+    small.textContent = sub;
+    el.appendChild(small);
   }
-  return `polygon(${corners.join(",")})`;
+
+  const margin = Math.min(vw() * 0.42, 220);
+  el.style.left = `${clamp(x, margin, vw() - margin).toFixed(1)}px`;
+  el.style.top = `${clamp(y, layout.bar + 50, vh() - layout.bar - 50).toFixed(1)}px`;
+
+  cuesEl.appendChild(el);
+  window.setTimeout(() => el.remove(), life + 120);
 }
 
-function comicBurst(text, x, y, { size = 44, rot = -6, caption = false, life = 1300 } = {}) {
+// A burst of light where the ring strikes the edge of the screen.
+function impactFlash(x, y, strength) {
   const el = document.createElement("div");
-  el.className = caption ? "comic-burst is-caption" : "comic-burst";
-  el.textContent = text;
-
-  const margin = Math.min(vw() * 0.45, size * text.length * 0.32 + 30);
-  el.style.left = `${clamp(x, margin, vw() - margin).toFixed(1)}px`;
-  el.style.top = `${clamp(y, layout.bar + size, vh() - layout.bar - size).toFixed(1)}px`;
-  el.style.setProperty("--size", `${size.toFixed(1)}px`);
-  el.style.setProperty("--rot", `${rot}deg`);
-  el.style.setProperty("--life", `${life}ms`);
-  if (!caption) el.style.setProperty("--star", starPolygon());
-
-  burstsEl.appendChild(el);
-  window.setTimeout(() => el.remove(), life + 120);
-  audio.caption();
+  el.className = "impact";
+  const size = 120 + strength * 220;
+  el.style.width = el.style.height = `${size}px`;
+  el.style.left = `${x}px`;
+  el.style.top = `${y}px`;
+  cuesEl.appendChild(el);
+  window.setTimeout(() => el.remove(), 700);
 }
 
 function shake(amount) {
@@ -1628,14 +1666,13 @@ function ringSay(text, options = {}) {
 }
 
 const oath = createOath({
-  container: $("comicOath"),
+  container: $("oath"),
   voice,
   audio,
-  reducedMotion: REDUCED_MOTION,
-  onHotWord: () => {
-    shake(0.18);
-    punch = Math.min(0.35, punch + 0.12);
-    emitSparks(LOW_POWER ? 6 : 12, 1.1);
+  onKeyWord: () => {
+    if (REDUCED_MOTION) return;
+    punch = Math.min(0.25, punch + 0.06);
+    emitSparks(LOW_POWER ? 4 : 8, 0.9);
   }
 });
 
@@ -1854,7 +1891,11 @@ function startFinish() {
 function maybeSpeakWelcome() {
   if (welcomeSpoken || !finaleLineDone || !revealShown) return;
   welcomeSpoken = true;
-  voice.say("Welcome, Green Lantern of Sector two eight one four. Earth's guardian.", { rate: 0.88, pitch: 0.84 });
+  voice.say("Welcome, Green Lantern of Sector two eight one four. Earth's guardian.", {
+    clip: "vo_welcome",
+    rate: 0.9,
+    pitch: 1.0
+  });
 }
 
 function updateFinish(dt) {
@@ -1876,13 +1917,10 @@ function updateFinish(dt) {
 
     emitSparks(REDUCED_MOTION ? 40 : LOW_POWER ? 110 : 170, 2.4);
 
-    comicBurst("RING FULLY CHARGED!", vw() / 2, vh() * 0.42, {
-      size: clamp(vw() * 0.06, 30, 78),
-      rot: -4,
-      life: 1900
-    });
+    cue("Ring fully charged", vw() / 2, vh() * 0.42, { title: true, life: 2400 });
 
     voice.say("Ring fully charged.", {
+      clip: "vo_ring_full",
       rate: 1.0,
       pitch: 1.08,
       onDone: () => {
@@ -1942,13 +1980,6 @@ const DISPATCHES = [
   "Incoming transmission: a cat is stuck in a tree in Sector 2814. Priority: emerald."
 ];
 
-const CONSTRUCTS = [
-  "Giant boxing glove", "Emerald battleship", "Wall of green bricks",
-  "Oversized fly swatter", "Sledgehammer", "Umbrella", "Catapult",
-  "Mini-golf windmill", "Pillow fort", "40 ft rubber duck", "Bear trap",
-  "Ladder to the moon", "Safety net", "Spatula"
-];
-
 let callsign = "";
 let lanternId = "";
 let dispatchTimer = 0;
@@ -2006,7 +2037,7 @@ function stopWelcome() {
 
 rerollBtn.addEventListener("click", () => {
   rollCallsign();
-  audio.blip();
+  audio.ui();
 });
 
 copyBtn.addEventListener("click", async () => {
@@ -2030,19 +2061,18 @@ copyBtn.addEventListener("click", async () => {
   }, 1600);
 });
 
-// Tap anywhere on the welcome page to summon a construct.
+// Tap anywhere on the welcome page to build a construct there.
+const constructs = createConstructs({
+  container: constructsEl,
+  audio,
+  reducedMotion: REDUCED_MOTION,
+  lowPower: LOW_POWER
+});
+
 reveal.addEventListener("pointerdown", event => {
   if (event.target.closest("button, a")) return;
-
-  comicBurst(`${pick(CONSTRUCTS)}!`, event.clientX, event.clientY, {
-    size: clamp(vw() * 0.028, 18, 30),
-    rot: Math.random() * 12 - 6,
-    life: 1500
-  });
-
-  audio.construct();
+  constructs.spawn(event.clientX, event.clientY, constructsEl);
   haptic(12);
-  emitSparks(REDUCED_MOTION ? 8 : 26, 1.4, screenToWorld(event.clientX, event.clientY, 1.5, scratch.point));
 });
 
 /* ===================================== */
@@ -2052,8 +2082,8 @@ reveal.addEventListener("pointerdown", event => {
 // "Recharge": the ring drops off the lantern at 2% and you go again. The knock
 // tutorial is skipped the second time round.
 function resetExperience() {
-  audio.reset();
   voice.stop();
+  constructs.clear();
   oath.reset();
   stopWelcome();
 
@@ -2136,6 +2166,7 @@ function announce(text) {
 /* ===================================== */
 
 const cameraLook = new THREE.Vector3();
+let dockView = 0;
 
 function updateCamera(time, dt) {
   const parallax = pointer.type === "mouse" && pointer.inside && !REDUCED_MOTION;
@@ -2159,6 +2190,13 @@ function updateCamera(time, dt) {
     xTarget = px * 0.18 + Math.sin(time * 0.37) * 0.05;
     yTarget = -py * 0.1 + Math.cos(time * 0.29) * 0.04;
   }
+
+  // On the lantern, swing round to a three-quarter view so you can see the
+  // ring's head seated in the lens.
+  const onLantern = stage === Stage.DOCKED || stage === Stage.FINALE || stage === Stage.WELCOME;
+  dockView = damp(dockView, onLantern ? 1 : 0, 1.1, dt);
+  xTarget += dockView * layout.z * 0.42;
+  yTarget += dockView * 0.7;
 
   camera.position.x = damp(camera.position.x, xTarget, 2.2, dt);
   camera.position.y = damp(camera.position.y, yTarget, 2.2, dt);
@@ -2202,6 +2240,7 @@ function animate(now) {
   updateHints(dt);
   updatePrompt();
   updateShake(dt);
+  constructs.update(dt);
 
   audio.update({
     attraction: attractionLevel,
@@ -2232,7 +2271,7 @@ loadAssets()
     camera.updateMatrixWorld();
     screenToWorld(ringBody.x, ringBody.y, RING_Z_REST, scratch.target);
     ring.position.copy(scratch.target);
-    ring.rotation.copy(REST_ROT);
+    ring.quaternion.copy(quat.rest);
 
     ready = true;
     bootEl.classList.add("is-done");
@@ -2256,6 +2295,12 @@ if (new URLSearchParams(window.location.search).has("debug")) {
     get ring() { return { ...ringBody }; },
     get socket() { return { ...scratch.socketScreen }; },
     get oathDone() { return oath.done; },
-    get voice() { return voice.voiceName; }
+    get voice() { return voice.voiceName; },
+    skip: () => skipIntro(),
+    dock: () => {
+      if (!powered) skipIntro();
+      ringBody.mode = "held";
+      dock();
+    }
   };
 }
