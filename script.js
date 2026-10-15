@@ -1,12 +1,12 @@
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-import { toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
+import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
+import { createAudio } from "./audio.js";
 
 /* ===================================== */
 /* DOM                                   */
@@ -31,6 +31,7 @@ const reveal = $("reveal");
 const restart = $("restart");
 const modelStatus = $("modelStatus");
 const oathLines = [...document.querySelectorAll(".oath-line")];
+const soundToggle = $("soundToggle");
 
 /* ===================================== */
 /* TUNING                                */
@@ -60,17 +61,21 @@ const FINISH_REVEAL = 3.4;
 const CAMERA_Z = 10.6;
 const BATTERY_HEIGHT = 2.9;
 const BATTERY_Y = 0.52;
-const RING_DIAMETER = 0.78;
+const RING_DIAMETER = 0.62;
 
 /* ===================================== */
 /* STATE                                 */
 /* ===================================== */
 
 let battery;          // group: model + glow overlays
-let batteryMesh;
+let glassMaterial;
+let coreMaterial;
+let batteryDisc;
 let ring;             // group that follows the pointer
-let ringSpin;         // inner group that spins around the emblem axis
-let ringMesh;
+let ringSpin;         // the signet model (face at the origin, +Z)
+let ringFaceGlow;
+let ringEnamel;
+let ringDisc;
 let ringAura;
 let lensGlow;
 let lensHalo;
@@ -98,6 +103,9 @@ let finishTime = 0;
 let flashFired = false;
 let revealShown = false;
 let lastAnnounced = 0;
+
+const audio = createAudio();
+let wasCharging = false;
 
 let lastInstruction = "";
 let lastProgress = -1;
@@ -525,113 +533,373 @@ function clearParticles() {
 /* MODELS                                */
 /* ===================================== */
 
-function metalMaterial({ color, emissive, roughness, metalness, clearcoat = 0.6 }) {
-  return new THREE.MeshPhysicalMaterial({
-    color,
-    emissive,
-    emissiveIntensity: 0,
-    metalness,
-    roughness,
-    clearcoat,
-    clearcoatRoughness: 0.22,
-    envMapIntensity: 1.0
+// Both props are built in code to match the reference photos: a gold signet
+// ring with green enamel and a concentric-ringed centre disc, and a brass
+// railway lantern with ribbed green glass and a ringed lens medallion.
+
+function makeCanvasTexture(size, draw, { data = false, repeat = 0 } = {}) {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  draw(canvas.getContext("2d"), size);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = data ? THREE.NoColorSpace : THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+
+  if (repeat) {
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(repeat, repeat);
+  }
+
+  return texture;
+}
+
+// Fine concentric grooves, used on the ring's centre disc and the lens medallion.
+function ringsTexture() {
+  return makeCanvasTexture(512, (ctx, size) => {
+    ctx.fillStyle = "#03150b";
+    ctx.fillRect(0, 0, size, size);
+    ctx.lineWidth = 2.4;
+
+    for (let r = 7; r < size / 2; r += 7.5) {
+      ctx.strokeStyle = `rgba(120,255,165,${0.5 + Math.random() * 0.4})`;
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = "#020a05";
+    ctx.beginPath();
+    ctx.arc(size / 2, size / 2, 9, 0, Math.PI * 2);
+    ctx.fill();
   });
 }
 
-// The GLBs are raw STL conversions: no normals, no materials, arbitrary units.
-// Give them crease-aware smooth normals, centre them and scale them to size.
-async function loadModel(url, material, onProgress) {
-  const gltf = await new GLTFLoader().loadAsync(url, event => {
-    if (event.lengthComputable) onProgress(event.loaded / event.total);
+// Cracked, glittering green enamel over black, like the photographed ring.
+function enamelTexture() {
+  return makeCanvasTexture(512, (ctx, size) => {
+    ctx.fillStyle = "#031209";
+    ctx.fillRect(0, 0, size, size);
+    ctx.lineCap = "round";
+
+    for (let i = 0; i < 220; i++) {
+      let x = Math.random() * size;
+      let y = Math.random() * size;
+      let angle = Math.random() * Math.PI * 2;
+
+      ctx.strokeStyle = `hsl(${142 + Math.random() * 16}, 85%, ${34 + Math.random() * 28}%)`;
+      ctx.lineWidth = 1 + Math.random() * 1.8;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+
+      const steps = 4 + Math.floor(Math.random() * 9);
+      for (let s = 0; s < steps; s++) {
+        angle += (Math.random() - 0.5) * 1.8;
+        const length = 6 + Math.random() * 22;
+        x += Math.cos(angle) * length;
+        y += Math.sin(angle) * length;
+        ctx.lineTo(x, y);
+      }
+
+      ctx.stroke();
+    }
+
+    for (let i = 0; i < 900; i++) {
+      ctx.fillStyle = `rgba(150,255,190,${Math.random() * 0.8})`;
+      ctx.fillRect(Math.random() * size, Math.random() * size, 1.5, 1.5);
+    }
   });
-
-  let mesh = null;
-  gltf.scene.traverse(node => {
-    if (node.isMesh && !mesh) mesh = node;
-  });
-
-  if (!mesh) throw new Error(`No mesh found in ${url}`);
-
-  const geometry = toCreasedNormals(mesh.geometry, THREE.MathUtils.degToRad(38));
-  geometry.computeBoundingBox();
-
-  const box = geometry.boundingBox;
-  const center = box.getCenter(new THREE.Vector3());
-  const size = box.getSize(new THREE.Vector3());
-  geometry.translate(-center.x, -center.y, -center.z);
-  geometry.computeBoundingBox();
-  geometry.computeBoundingSphere();
-
-  const model = new THREE.Mesh(geometry, material);
-  mesh.geometry.dispose();
-
-  return { model, size };
 }
 
-async function loadAssets() {
-  const progress = [0, 0];
-  const report = () => {
-    const percent = Math.round(((progress[0] + progress[1]) / 2) * 100);
-    modelStatus.textContent = `Forging the ring… ${percent}%`;
+// Grey noise plus scratches: drives roughness and bump on every metal part.
+function scuffTexture(repeat = 3) {
+  return makeCanvasTexture(256, (ctx, size) => {
+    const image = ctx.createImageData(size, size);
+
+    for (let i = 0; i < image.data.length; i += 4) {
+      const v = 150 + Math.random() * 105;
+      image.data[i] = image.data[i + 1] = image.data[i + 2] = v;
+      image.data[i + 3] = 255;
+    }
+
+    ctx.putImageData(image, 0, 0);
+
+    for (let i = 0; i < 70; i++) {
+      const dark = Math.random() > 0.5 ? 40 : 255;
+      ctx.strokeStyle = `rgba(${dark},${dark},${dark},${0.1 + Math.random() * 0.25})`;
+      ctx.lineWidth = 0.6 + Math.random();
+      ctx.beginPath();
+      const x = Math.random() * size;
+      const y = Math.random() * size;
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + (Math.random() - 0.5) * 70, y + (Math.random() - 0.5) * 24);
+      ctx.stroke();
+    }
+  }, { data: true, repeat });
+}
+
+function buildRing() {
+  const scuff = scuffTexture(2);
+  const rings = ringsTexture();
+  const enamelMap = enamelTexture();
+
+  const gold = new THREE.MeshPhysicalMaterial({
+    color: 0xd9a93b,
+    metalness: 1,
+    roughness: 0.3,
+    roughnessMap: scuff,
+    clearcoat: 0.25,
+    clearcoatRoughness: 0.35
+  });
+
+  const silver = new THREE.MeshPhysicalMaterial({
+    color: 0xc6c9cc,
+    metalness: 1,
+    roughness: 0.62,
+    roughnessMap: scuff,
+    bumpMap: scuff,
+    bumpScale: 1.4
+  });
+
+  const enamel = new THREE.MeshPhysicalMaterial({
+    color: 0x0d4a29,
+    map: enamelMap,
+    emissive: 0x20e070,
+    emissiveMap: enamelMap,
+    emissiveIntensity: 0.05,
+    metalness: 0.35,
+    roughness: 0.16,
+    clearcoat: 1,
+    clearcoatRoughness: 0.04
+  });
+
+  const disc = new THREE.MeshPhysicalMaterial({
+    color: 0x0f4a28,
+    map: rings,
+    emissive: 0x4dff94,
+    emissiveMap: rings,
+    emissiveIntensity: 0.25,
+    metalness: 0.75,
+    roughness: 0.32
+  });
+
+  const model = new THREE.Group();
+
+  // Band: a torus around the Y axis, so the finger would point up.
+  const band = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.11, 28, 72), silver);
+  band.rotation.x = Math.PI / 2;
+  band.scale.set(1, 1, 1.12);
+  model.add(band);
+
+  // Square face on the +Z side of the band.
+  const plate = new THREE.Mesh(new RoundedBoxGeometry(1.02, 1.0, 0.16, 5, 0.025), gold);
+  plate.position.z = 0.58;
+  model.add(plate);
+
+  const faceZ = 0.58 + 0.08;
+
+  const place = (mesh, z, x = 0, y = 0) => {
+    mesh.position.set(x, y, faceZ + z);
+    model.add(mesh);
+    return mesh;
   };
 
-  const batteryMaterial = metalMaterial({
-    color: 0x1c6a3c,
-    emissive: 0x00ff66,
-    roughness: 0.3,
-    metalness: 0.88
+  // Two enamel bars and the enamel field between them.
+  for (const y of [0.405, -0.405]) {
+    place(new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.15, 0.02), enamel), 0.004, 0, y);
+  }
+
+  place(new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.55, 0.02), enamel), 0.004);
+
+  // Gold circle outline and the ringed centre disc.
+  place(new THREE.Mesh(new THREE.TorusGeometry(0.265, 0.022, 14, 72), gold), 0.012);
+  place(new THREE.Mesh(new THREE.CircleGeometry(0.235, 72), disc), 0.016);
+
+  const faceGlow = place(
+    new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.3), additive(glowTexture, 0x6dffa8, 0)),
+    0.07
+  );
+
+  // Put the face, not the band, at the group origin so the ring tilts about it.
+  model.position.z = -faceZ;
+
+  const group = new THREE.Group();
+  group.add(model);
+  group.userData.enamel = enamel;
+  group.userData.disc = disc;
+  group.userData.faceGlow = faceGlow;
+
+  return group;
+}
+
+function buildBattery() {
+  const scuff = scuffTexture(4);
+  const rings = ringsTexture();
+
+  const brass = new THREE.MeshPhysicalMaterial({
+    color: 0xb48b3c,
+    metalness: 1,
+    roughness: 0.42,
+    roughnessMap: scuff,
+    bumpMap: scuff,
+    bumpScale: 0.8,
+    clearcoat: 0.1
   });
 
-  const ringMaterial = metalMaterial({
-    color: 0x1f6a3e,
-    emissive: 0x00ff66,
-    roughness: 0.22,
-    metalness: 0.94,
-    clearcoat: 0.8
+  const stone = new THREE.MeshPhysicalMaterial({
+    color: 0x6c6e69,
+    metalness: 0.05,
+    roughness: 0.86,
+    roughnessMap: scuff,
+    bumpMap: scuff,
+    bumpScale: 2
   });
 
-  const [batteryAsset, ringAsset] = await Promise.all([
-    loadModel("assets/green_lantern.glb", batteryMaterial, value => {
-      progress[0] = value;
-      report();
-    }),
-    loadModel("assets/green-lantern-ring.glb", ringMaterial, value => {
-      progress[1] = value;
-      report();
-    })
-  ]);
+  const glass = new THREE.MeshPhysicalMaterial({
+    color: 0x0e7436,
+    transparent: true,
+    opacity: 0.88,
+    metalness: 0,
+    roughness: 0.08,
+    clearcoat: 1,
+    clearcoatRoughness: 0.03,
+    ior: 1.5,
+    emissive: 0x18ff70,
+    emissiveIntensity: 0,
+    side: THREE.DoubleSide,
+    envMapIntensity: 1.5
+  });
 
+  const core = new THREE.MeshStandardMaterial({
+    color: 0x063d1d,
+    emissive: 0x2dff7e,
+    emissiveIntensity: 0.18,
+    roughness: 0.4
+  });
+
+  const disc = new THREE.MeshPhysicalMaterial({
+    color: 0x0f4a28,
+    map: rings,
+    emissive: 0x4dff94,
+    emissiveMap: rings,
+    emissiveIntensity: 0.4,
+    metalness: 0.75,
+    roughness: 0.3
+  });
+
+  const lantern = new THREE.Group();
+
+  const add = (geometry, material, x, y, z = 0) => {
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.position.set(x, y, z);
+    lantern.add(mesh);
+    return mesh;
+  };
+
+  // Ribbed glass: a bulging lathe with a ripple along its height.
+  const profile = [];
+  const steps = 90;
+
+  for (let i = 0; i <= steps; i++) {
+    const t = i / steps;
+    const radius =
+      0.58 +
+      0.1 * Math.sin(Math.PI * t) +
+      0.032 * (0.5 + 0.5 * Math.cos(t * Math.PI * 2 * 9));
+    profile.push(new THREE.Vector2(radius, -1 + 2 * t));
+  }
+
+  add(new THREE.LatheGeometry(profile, 72), glass, 0, 0);
+
+  // Glowing core inside the glass.
+  add(new THREE.CylinderGeometry(0.3, 0.3, 1.7, 32), core, 0, 0);
+
+  // Top: brass and stone collars, cone, dome and carrying ring.
+  add(new THREE.CylinderGeometry(0.76, 0.76, 0.1, 56), brass, 0, 1.02);
+  add(new THREE.CylinderGeometry(0.74, 0.74, 0.22, 56), stone, 0, 1.18);
+  add(new THREE.CylinderGeometry(0.77, 0.77, 0.1, 56), brass, 0, 1.34);
+  add(new THREE.CylinderGeometry(0.3, 0.7, 0.34, 56), brass, 0, 1.56);
+  add(new THREE.SphereGeometry(0.2, 32, 20), brass, 0, 1.76).scale.y = 1.2;
+  add(new THREE.TorusGeometry(0.36, 0.03, 18, 72), brass, 0, 2.06);
+
+  // Bottom: mirrored collars and a flared foot.
+  add(new THREE.CylinderGeometry(0.76, 0.76, 0.1, 56), brass, 0, -1.02);
+  add(new THREE.CylinderGeometry(0.74, 0.74, 0.22, 56), stone, 0, -1.18);
+  add(new THREE.CylinderGeometry(0.77, 0.77, 0.1, 56), brass, 0, -1.34);
+  add(new THREE.CylinderGeometry(0.72, 0.84, 0.3, 56), brass, 0, -1.54);
+  add(new THREE.CylinderGeometry(0.86, 0.86, 0.08, 56), brass, 0, -1.74);
+
+  // Two brass rails across the front, held off the glass by small posts.
+  for (const y of [0.25, -0.25]) {
+    const rail = add(new THREE.CylinderGeometry(0.024, 0.024, 2.0, 16), brass, 0, y, 0.72);
+    rail.rotation.z = Math.PI / 2;
+
+    for (const x of [-1, 1]) {
+      add(new THREE.SphereGeometry(0.045, 16, 12), brass, x, y, 0.72);
+
+      const post = add(new THREE.CylinderGeometry(0.02, 0.02, 0.24, 12), brass, x * 0.62, y, 0.62);
+      post.rotation.x = Math.PI / 2;
+    }
+  }
+
+  // Lens medallion: brass disc, outer ring and the ringed centre.
+  const medallion = add(new THREE.CylinderGeometry(0.37, 0.4, 0.12, 72), brass, 0, 0, 0.76);
+  medallion.rotation.x = Math.PI / 2;
+
+  add(new THREE.TorusGeometry(0.34, 0.028, 16, 72), brass, 0, 0, 0.83);
+  add(new THREE.CircleGeometry(0.29, 72), disc, 0, 0, 0.828);
+
+  add(
+    new THREE.PlaneGeometry(0.12, 0.12),
+    new THREE.MeshBasicMaterial({ color: 0xbfffd6, toneMapped: false }),
+    0,
+    0,
+    0.832
+  );
+
+  // Centre the lantern on the origin; its overall height is about 4 units.
+  lantern.position.y = -0.34;
+
+  const group = new THREE.Group();
+  group.add(lantern);
+  group.scale.setScalar(BATTERY_HEIGHT / 4.06);
+
+  group.userData.socket = new THREE.Vector3(0, -0.34, 0.83);
+  group.userData.glass = glass;
+  group.userData.core = core;
+  group.userData.disc = disc;
+
+  return group;
+}
+
+function buildAssets() {
   /* Battery */
-  battery = new THREE.Group();
-  batteryMesh = batteryAsset.model;
+  battery = buildBattery();
+  glassMaterial = battery.userData.glass;
+  coreMaterial = battery.userData.core;
+  batteryDisc = battery.userData.disc;
 
-  const batteryScale = BATTERY_HEIGHT / batteryAsset.size.y;
-  batteryMesh.scale.setScalar(batteryScale);
-  battery.add(batteryMesh);
-
-  // The lens (the emblem face) points down +Z in the model.
-  const frontZ = (batteryAsset.size.z / 2) * batteryScale;
-  battery.userData.socket = new THREE.Vector3(0, 0, frontZ);
+  const socket = battery.userData.socket;
 
   lensGlow = new THREE.Mesh(
     new THREE.PlaneGeometry(1, 1),
     additive(glowTexture, 0x9dffc0, 0.0)
   );
-  lensGlow.position.copy(battery.userData.socket).add(new THREE.Vector3(0, 0, 0.05));
+  lensGlow.position.copy(socket).add(new THREE.Vector3(0, 0, 0.06));
   battery.add(lensGlow);
 
   lensHalo = new THREE.Mesh(
     new THREE.PlaneGeometry(1, 1),
     additive(glowTexture, 0x20ff74, 0.0)
   );
-  lensHalo.position.copy(battery.userData.socket).add(new THREE.Vector3(0, 0, 0.03));
+  lensHalo.position.copy(socket).add(new THREE.Vector3(0, 0, 0.04));
   battery.add(lensHalo);
 
   flare = new THREE.Mesh(
     new THREE.PlaneGeometry(1, 1),
     additive(flareTexture, 0xb8ffd0, 0.0)
   );
-  flare.position.copy(battery.userData.socket).add(new THREE.Vector3(0, 0, 0.08));
+  flare.position.copy(socket).add(new THREE.Vector3(0, 0, 0.1));
   battery.add(flare);
 
   battery.position.set(0, BATTERY_Y, 0);
@@ -646,12 +914,11 @@ async function loadAssets() {
 
   /* Ring */
   ring = new THREE.Group();
-  ringSpin = new THREE.Group();
-  ringMesh = ringAsset.model;
-
-  const ringScale = RING_DIAMETER / Math.max(ringAsset.size.x, ringAsset.size.z);
-  ringMesh.scale.setScalar(ringScale);
-  ringSpin.add(ringMesh);
+  ringSpin = buildRing();
+  ringSpin.scale.setScalar(RING_DIAMETER);
+  ringFaceGlow = ringSpin.userData.faceGlow;
+  ringEnamel = ringSpin.userData.enamel;
+  ringDisc = ringSpin.userData.disc;
   ring.add(ringSpin);
 
   ringAura = new THREE.Mesh(
@@ -687,6 +954,9 @@ window.addEventListener("pointerdown", event => {
 
   if (event.target.closest("button")) return;
 
+  audio.unlock();
+  syncSoundLabel();
+
   pointerHold = true;
   setHolding();
 
@@ -713,6 +983,9 @@ window.addEventListener("blur", () => {
 });
 
 document.addEventListener("visibilitychange", () => {
+  if (document.hidden) audio.suspend();
+  else audio.resume();
+
   if (document.hidden) {
     pointerHold = false;
     keyboardHold = false;
@@ -726,6 +999,14 @@ const KEY_STEP = 26;
 
 window.addEventListener("keydown", event => {
   if (event.target.closest && event.target.closest("button")) return;
+
+  audio.unlock();
+  syncSoundLabel();
+
+  if (event.code === "KeyM") {
+    toggleSound();
+    return;
+  }
 
   if (event.code === "Space") {
     event.preventDefault();
@@ -852,10 +1133,10 @@ function updateRing(time, dt) {
   ring.rotation.y = damp(ring.rotation.y, rot.y + Math.cos(time * 1.3) * (isSnapped ? 0 : 0.06), 6, dt);
   ring.rotation.z = damp(ring.rotation.z, rot.z, 6, dt);
 
-  // While charging the ring slowly spins about its own emblem axis.
-  const spinTarget = isHolding && isSnapped ? 0.35 + charge * 4.2 : 0.18;
-  ringSpin.userData.spinSpeed = damp(ringSpin.userData.spinSpeed ?? 0.18, spinTarget, 2.2, dt);
-  ringSpin.rotation.z += ringSpin.userData.spinSpeed * dt;
+  // The emblem stays upright. Under load the ring trembles instead of spinning.
+  const tremor = isHolding && isSnapped && !REDUCED_MOTION ? charge * charge : 0;
+  ringSpin.rotation.y = Math.sin(time * 38) * 0.018 * tremor;
+  ringSpin.rotation.x = Math.sin(time * 31 + 0.7) * 0.014 * tremor;
 }
 
 /* ===================================== */
@@ -940,6 +1221,8 @@ function updateOath() {
       ? charge >= threshold - 0.015
       : charge >= threshold;
 
+    if (shown && !lineState[index]) audio.oath(index, oathLines.length);
+
     lineState[index] = shown;
 
     line.classList.toggle("visible", shown);
@@ -964,6 +1247,10 @@ function updateCharge(dt) {
   }
 
   charge = THREE.MathUtils.clamp(charge, 0, 1);
+
+  const charging = isHolding && isSnapped;
+  if (wasCharging && !charging && charge > 0.05 && charge < 1) audio.release();
+  wasCharging = charging;
 
   if (charge >= 1) startFinish();
 }
@@ -990,7 +1277,7 @@ function updateEnergy(time, dt) {
     : 0;
   const energy = Math.min(1.6, level * 0.85 + build * 0.9 + (holding ? 0.06 : 0));
 
-  const lensSize = 0.55 + proximity * 0.06 + energy * 0.32;
+  const lensSize = 0.85 + proximity * 0.08 + energy * 0.5;
   lensGlow.scale.setScalar(lensSize);
   lensGlow.material.opacity = Math.min(
     0.85,
@@ -998,18 +1285,22 @@ function updateEnergy(time, dt) {
       (isSnapped && !completed ? 0.7 : 1)
   );
 
-  const haloSize = 1.3 + proximity * 0.3 + energy * 1.1;
+  const haloSize = 1.9 + proximity * 0.4 + energy * 1.7;
   lensHalo.scale.setScalar(haloSize);
   lensHalo.material.opacity = Math.min(0.7, 0.08 + proximity * 0.14 + energy * 0.3);
 
-  flare.scale.set(1.4 + energy * 4.6, 0.08 + energy * 0.16, 1);
+  flare.scale.set(2 + energy * 6.5, 0.1 + energy * 0.22, 1);
   flare.material.opacity = Math.min(1, Math.max(0, energy - 0.12) * 0.9 + (completed ? 0.1 : 0));
 
-  batteryMesh.material.emissiveIntensity =
-    0.02 + proximity * 0.04 + energy * (0.1 + pulse * 0.04);
+  // The lantern's glass fills with light from the core as the charge builds.
+  glassMaterial.emissiveIntensity = 0.02 + proximity * 0.05 + energy * (0.55 + pulse * 0.2);
+  coreMaterial.emissiveIntensity = 0.18 + proximity * 0.5 + energy * (2.6 + pulse * 0.9);
+  batteryDisc.emissiveIntensity = 0.4 + proximity * 0.7 + energy * (2.2 + pulse * 0.6);
 
-  ringMesh.material.emissiveIntensity =
-    0.03 + proximity * 0.1 + (holding ? 0.18 : 0) + energy * 0.5;
+  // The ring's centre disc lights first, then the enamel.
+  ringDisc.emissiveIntensity = 0.25 + proximity * 0.7 + (holding ? 0.5 : 0) + energy * 2.4;
+  ringEnamel.emissiveIntensity = 0.05 + proximity * 0.2 + (holding ? 0.2 : 0) + energy * 0.9;
+  ringFaceGlow.material.opacity = Math.min(0.9, proximity * 0.12 + (holding ? 0.15 : 0) + energy * 0.55);
 
   ringAura.material.opacity = Math.min(0.5, 0.02 + proximity * 0.12 + (isSnapped ? 0.04 : 0) + energy * 0.16);
   ringAura.scale.setScalar(1.0 + proximity * 0.2 + energy * 0.5);
@@ -1142,6 +1433,7 @@ function startFinish() {
   updateProgressText();
   updateInstruction();
   announce("Charge complete");
+  audio.finishStart(FINISH_FLASH);
 }
 
 function updateFinish(dt) {
@@ -1156,12 +1448,14 @@ function updateFinish(dt) {
   ring.position.y = damp(ring.position.y, scratch.target.y, 10, dt);
   ring.position.z = damp(ring.position.z, scratch.target.z, 10, dt);
 
-  ringSpin.userData.spinSpeed = damp(ringSpin.userData.spinSpeed ?? 1, 7, 1.6, dt);
-  ringSpin.rotation.z += ringSpin.userData.spinSpeed * dt;
+  if (!REDUCED_MOTION) {
+    ringSpin.rotation.y = Math.sin(finishTime * 46) * 0.03 * (1 - flashFired * 0.8);
+  }
 
   if (!flashFired && finishTime >= FINISH_FLASH) {
     flashFired = true;
     flash.classList.add("fire");
+    audio.finishBoom();
 
     shockwave.visible = true;
     shockwave.position.copy(scratch.socketWorld);
@@ -1187,6 +1481,7 @@ function updateFinish(dt) {
 
   if (!revealShown && finishTime >= FINISH_REVEAL) {
     revealShown = true;
+    audio.reveal();
     reveal.classList.add("visible");
     reveal.setAttribute("aria-hidden", "false");
     restart.focus({ preventScroll: true });
@@ -1198,6 +1493,8 @@ function updateFinish(dt) {
 /* ===================================== */
 
 function resetExperience() {
+  audio.reset();
+  wasCharging = false;
   completed = false;
   isHolding = false;
   pointerHold = false;
@@ -1229,8 +1526,7 @@ function resetExperience() {
   screenToWorld(smoothX, smoothY, 2.0, scratch.target);
   ring.position.copy(scratch.target);
   ring.rotation.copy(IDLE_ROT);
-  ringSpin.rotation.z = 0;
-  ringSpin.userData.spinSpeed = 0.18;
+  ringSpin.rotation.set(0, 0, 0);
 
   battery.rotation.set(0, 0, 0);
   camera.position.set(0, 0, cameraBaseZ());
@@ -1240,9 +1536,40 @@ function resetExperience() {
 }
 
 restart.addEventListener("click", () => {
+  audio.unlock();
   resetExperience();
   announce("Ready");
 });
+
+/* ===================================== */
+/* SOUND TOGGLE                          */
+/* ===================================== */
+
+function syncSoundLabel() {
+  let label = "Sound on";
+  if (!audio.isUnlocked()) label = "Sound · click to start";
+  else if (audio.isMuted()) label = "Sound off";
+
+  soundToggle.textContent = label;
+  soundToggle.setAttribute("aria-pressed", String(audio.isUnlocked() && !audio.isMuted()));
+}
+
+function toggleSound() {
+  audio.setMuted(!audio.isMuted());
+  syncSoundLabel();
+}
+
+soundToggle.addEventListener("click", () => {
+  if (!audio.isUnlocked()) {
+    audio.unlock();
+    syncSoundLabel();
+    return;
+  }
+
+  toggleSound();
+});
+
+syncSoundLabel();
 
 /* ===================================== */
 /* CAMERA                                */
@@ -1311,6 +1638,14 @@ function animate(now) {
   updateProgressText();
   updateInstruction();
 
+  audio.update({
+    attraction: attractionLevel,
+    snapped: isSnapped,
+    holding: isHolding,
+    charge,
+    completed
+  });
+
   battery.position.y = BATTERY_Y + Math.sin(elapsed * 0.85) * 0.012;
 
   composer.render();
@@ -1322,7 +1657,8 @@ window.addEventListener("resize", resizeRenderer);
 /* START                                 */
 /* ===================================== */
 
-loadAssets()
+Promise.resolve()
+  .then(buildAssets)
   .then(() => {
     ready = true;
     modelStatus.textContent = "";
@@ -1332,8 +1668,7 @@ loadAssets()
   })
   .catch(error => {
     console.error(error);
-    modelStatus.textContent =
-      "Could not load the models. Serve the folder over http instead of opening the file directly.";
+    modelStatus.textContent = "Could not build the scene. Serve the folder over http instead of opening the file directly.";
     modelStatus.classList.add("error");
   });
 

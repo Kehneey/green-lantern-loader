@@ -1,14 +1,14 @@
 # Green Lantern Loader Test
 
-Interactive Three.js charging-loader prototype using two GLB models.
+Interactive Three.js charging-loader prototype: a gold signet power ring charging on a brass power-battery lantern.
 
 ## Files
 
 - `index.html`
 - `style.css`
-- `script.js`
-- `assets/green_lantern.glb`
-- `assets/green-lantern-ring.glb`
+- `script.js`: scene, input, charge, finish sequence
+- `audio.js`: synthesised sound (Web Audio, no audio files)
+- `assets/*.glb`: the original comic-style battery and ring. They are no longer loaded; the ring and lantern are now built in code to match the reference photos.
 
 ## Run locally
 
@@ -29,6 +29,10 @@ Because the page loads 3D assets, use a local server rather than opening `index.
 4. A full charge takes about 22 seconds of continuous holding. The oath appears one word at a time, line by line.
 5. Releasing early drains the charge slowly and the oath fades back out.
 6. At 100%, the ring spins up, the lens flares, a shockwave fires and the result screen appears.
+
+## Sound
+
+All sound is synthesised in the browser: a low drone, a magnetic pull as the ring approaches, a lock-on clunk, a charge hum that rises in pitch and tremolo with the charge, a swell for each oath line and a riser and boom at the finish. Browsers only allow audio after a click, so it starts on your first press. Use the Sound button or press `M` to mute.
 
 `prefers-reduced-motion` is respected: no camera sway, shake, grain or hard flash.
 

@@ -219,7 +219,7 @@ button {
 .oath {
   position: absolute;
   left: 50%;
-  top: 63%;
+  top: 66%;
   z-index: 25;
   width: min(760px, 72vw);
   transform: translateX(-50%);
@@ -366,7 +366,7 @@ button {
 .model-status {
   position: absolute;
   left: 34px;
-  bottom: calc(clamp(26px, 4.4vh, 56px) + 18px);
+  bottom: calc(clamp(26px, 4.4vh, 56px) + 44px);
   z-index: 30;
   color: rgba(180,255,205,.3);
   font-size: 9px;
@@ -472,6 +472,31 @@ button {
   transform: translateY(-2px);
 }
 
+.sound-toggle {
+  position: absolute;
+  left: 34px;
+  bottom: calc(clamp(26px, 4.4vh, 56px) + 18px);
+  z-index: 60;
+  padding: 6px 2px;
+  border: 0;
+  background: none;
+  color: rgba(180,255,205,.42);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: color .2s ease;
+}
+
+.sound-toggle:hover,
+.sound-toggle:focus-visible { color: #d3ffe1; }
+
+.sound-toggle:focus-visible {
+  outline: 1px solid #9dffbb;
+  outline-offset: 4px;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -507,6 +532,10 @@ button {
   100% { opacity: 0; }
 }
 
+@media (max-aspect-ratio: 1/1) {
+  .oath { top: 71%; }
+}
+
 @media (max-width: 700px) {
   .cinematic-kicker { display: none; }
 
@@ -530,7 +559,12 @@ button {
 
   .model-status {
     left: 18px;
-    bottom: 46px;
+    bottom: 72px;
+  }
+
+  .sound-toggle {
+    left: 18px;
+    bottom: 40px;
   }
 
   .instruction {
