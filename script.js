@@ -708,7 +708,7 @@ function addGlow(material, maskGLSL) {
 // (the source STLs had none), centre them and measure them.
 async function loadModel(loader, url, material, onProgress) {
   const gltf = await loader.loadAsync(url, event => {
-    if (event.lengthComputable) onProgress(event.loaded / event.total);
+    if (event.lengthComputable) onProgress(Math.min(1, event.loaded / event.total));
   });
 
   gltf.scene.updateMatrixWorld(true);
@@ -754,7 +754,8 @@ async function loadModel(loader, url, material, onProgress) {
 async function loadAssets() {
   const progress = [0, 0];
   const report = () => {
-    const value = (progress[0] + progress[1]) / 2;
+    // Hosts that compress files can report more bytes loaded than the total.
+    const value = clamp((progress[0] + progress[1]) / 2, 0, 1);
     // The Enter button's ring is the loading bar.
     enterFill.style.strokeDashoffset = (301.6 * (1 - value)).toFixed(1);
   };
