@@ -52,7 +52,7 @@ then open http://localhost:8123. VS Code's Live Server works too.
 
 ## Sound and voice
 
-**The oath recording.** Put a full spoken oath at `assets/audio/oath_track.mp3`. Holding the ring on the lantern plays it, letting go pauses it, and the charge and the words on screen follow the recording. Word timing is set in `TRACK_CUES` at the top of `oath.js` (measured for the current take). This file is git-ignored, because the current take is a third-party recording; only publish it if you have the rights.
+**The oath recording.** Put a full spoken oath at `assets/audio/oath_track.mp3`. Holding the ring on the lantern plays it, letting go pauses it, and the charge and the words on screen follow the recording. Word timing is set in `TRACK_CUES` at the top of `oath.js` (measured for the current take).
 
 Without the track, the oath lines use `vo_oath_1`…`vo_oath_4` (or the browser's speech as a last resort). The ring's own lines (`vo_ring_low`, `vo_ring_full`, `vo_welcome`) play only from recordings; there is no robotic fallback. See `AUDIO_PROMPTS.md` for all file names and prompts. Missing sound effects use built-in synthesised stand-ins.
 
