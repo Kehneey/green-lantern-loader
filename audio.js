@@ -44,26 +44,74 @@ export function createAudio() {
   /* Samples                               */
   /* ------------------------------------- */
 
-  async function fetchSample(name) {
+  // Audio arrives as base64 inside JSON (see tools/pack_audio.py), listed in
+  // assets/audio/manifest.json. Download managers never see an audio request
+  // to hijack, and there is no probing for files that don't exist. The bytes
+  // are fetched as soon as the page loads; decoding waits for unlock().
+  const raw = new Map();
+
+  function base64ToBytes(text) {
+    const binary = window.atob(text);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes.buffer;
+  }
+
+  async function fetchPacked(path) {
+    const response = await fetch(`${AUDIO_DIR}${path}`);
+    if (!response.ok) throw new Error(`${path}: ${response.status}`);
+    const packed = await response.json();
+    return base64ToBytes(packed.data);
+  }
+
+  // Without a manifest (e.g. running locally before packing), fall back to
+  // looking for plain files.
+  async function fetchPlain(name) {
     for (const ext of ["mp3", "wav", "ogg"]) {
       try {
         const response = await fetch(`${AUDIO_DIR}${name}.${ext}`);
-        if (!response.ok) continue;
-        const data = await response.arrayBuffer();
-        return await ctx.decodeAudioData(data);
+        if (response.ok) return await response.arrayBuffer();
       } catch (error) {
         /* try the next format */
       }
     }
-
     return null;
   }
 
-  async function loadSamples() {
+  const prefetched = (async () => {
+    let manifest = null;
+
+    try {
+      const response = await fetch(`${AUDIO_DIR}manifest.json`, { cache: "no-cache" });
+      if (response.ok) manifest = await response.json();
+    } catch (error) {
+      manifest = null;
+    }
+
+    const names = manifest ? Object.keys(manifest.files || {}) : SAMPLES;
+
     await Promise.all(
-      SAMPLES.map(async name => {
-        const buffer = await fetchSample(name);
-        if (buffer) buffers.set(name, buffer);
+      names.map(async name => {
+        try {
+          const bytes = manifest ? await fetchPacked(manifest.files[name]) : await fetchPlain(name);
+          if (bytes) raw.set(name, bytes);
+        } catch (error) {
+          console.warn(`Audio "${name}" could not be loaded.`, error);
+        }
+      })
+    );
+  })();
+
+  async function loadSamples() {
+    await prefetched;
+
+    await Promise.all(
+      [...raw].map(async ([name, bytes]) => {
+        try {
+          buffers.set(name, await ctx.decodeAudioData(bytes.slice(0)));
+        } catch (error) {
+          console.warn(`Audio "${name}" could not be decoded.`, error);
+        }
       })
     );
 

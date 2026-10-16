@@ -52,6 +52,8 @@ then open http://localhost:8123. VS Code's Live Server works too.
 
 ## Sound and voice
 
+**Adding audio.** Drop files into `assets/audio/` and run `python tools/pack_audio.py` (the GitHub Pages workflow also runs it on every deploy). It wraps each file as JSON in `assets/audio/packed/` and lists them in `assets/audio/manifest.json`; the page loads those, so download managers such as IDM never intercept the audio.
+
 **The oath recording.** Put a full spoken oath at `assets/audio/oath_track.mp3`. Holding the ring on the lantern plays it, letting go pauses it, and the charge and the words on screen follow the recording. Word timing is set in `TRACK_CUES` at the top of `oath.js` (measured for the current take).
 
 Without the track, the oath lines use `vo_oath_1`…`vo_oath_4` (or the browser's speech as a last resort). The ring's own lines (`vo_ring_low`, `vo_ring_full`, `vo_welcome`) play only from recordings; there is no robotic fallback. See `AUDIO_PROMPTS.md` for all file names and prompts. Missing sound effects use built-in synthesised stand-ins.

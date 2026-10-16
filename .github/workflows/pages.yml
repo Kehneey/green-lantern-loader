@@ -25,6 +25,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      # Wrap the audio so download managers can't hijack it (see tools/pack_audio.py).
+      - name: Pack audio
+        run: python3 tools/pack_audio.py
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
