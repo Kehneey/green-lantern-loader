@@ -2396,6 +2396,9 @@ function enter(withSound) {
   if (!withSound && !audio.isMuted()) toggleSound();
   if (withSound && audio.isMuted()) toggleSound();
 
+  // An immediate, audible confirmation that sound is on.
+  if (withSound) audio.reveal();
+
   entered = true;
   introEl.classList.add("is-gone");
   loaderEl.classList.add("is-entered");
@@ -2419,6 +2422,15 @@ if (new URLSearchParams(window.location.search).has("debug")) {
     get socket() { return { ...scratch.socketScreen }; },
     get oathDone() { return oath.done; },
     get voice() { return voice.voiceName; },
+    get audio() {
+      return {
+        unlocked: audio.isUnlocked(),
+        muted: audio.isMuted(),
+        hasTrack: audio.hasTrack(),
+        trackTime: audio.trackTime(),
+        charging: isCharging()
+      };
+    },
     skip: () => skipIntro(),
     dock: () => {
       if (!powered) skipIntro();
