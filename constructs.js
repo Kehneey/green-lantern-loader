@@ -1,9 +1,9 @@
 import * as THREE from "three";
 
-// Green-light constructs for the welcome page. Each tap builds one at the tap
-// point the way a ring-slinger would: a faint blueprint of the whole object
-// appears, then its parts fly in one by one and lock into place, the finished
-// construct pulses and is named, holds, and finally breaks apart.
+// Green-light constructs for the ending. Each one is built systematically: a
+// drawing frame appears, each part's outline is traced in order, then the
+// parts fly in one by one and lock onto their outlines, the finished construct
+// flares and is named, holds, and finally breaks apart.
 //
 // Constructs are made from simple, low-poly parts so their edges read as hard
 // light. Units: the finished object is roughly 2.4 units across.
@@ -109,13 +109,13 @@ const BLUEPRINTS = [
 const easeOutBack = t => 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2);
 const easeIn = t => t * t;
 
-export function createConstructs({ container, audio, reducedMotion = false, lowPower = false }) {
+export function createConstructs({ container, audio, reducedMotion = false, lowPower = false, onStatus = () => {} }) {
   let renderer;
 
   try {
     renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
   } catch (error) {
-    return { spawn() {}, update() {}, resize() {}, clear() {} };
+    return { spawn() {}, spawnCenter() {}, update() {}, resize() {}, clear() {} };
   }
 
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1.5 : 2));
@@ -193,9 +193,40 @@ export function createConstructs({ container, audio, reducedMotion = false, lowP
     return { holder, faceMaterial, edgeMaterial, home, from, index, count, locked: false };
   }
 
-  // A ghost of the finished object, drawn first like a blueprint.
-  function makeGhost(specs) {
-    const material = new THREE.LineBasicMaterial({
+  // Blueprint outlines, one per part, so they can be traced in build order.
+  function makeGhosts(specs) {
+    return specs.map(spec => {
+      const material = new THREE.LineBasicMaterial({
+        color: GREEN,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+
+      const lines = new THREE.LineSegments(new THREE.EdgesGeometry(spec.geo, 20), material);
+      lines.position.set(...spec.pos);
+      lines.rotation.set(...spec.rot);
+      lines.scale.set(...spec.scale);
+      return { lines, material };
+    });
+  }
+
+  // A technical drawing frame: fine grid, and corner brackets. It faces the
+  // viewer and does not spin with the construct.
+  function makeFrame() {
+    const points = [];
+    const half = 1.55;
+    const step = half / 4;
+
+    for (let i = -4; i <= 4; i++) {
+      points.push(-half, i * step, 0, half, i * step, 0);
+      points.push(i * step, -half, 0, i * step, half, 0);
+    }
+
+    const gridGeometry = new THREE.BufferGeometry();
+    gridGeometry.setAttribute("position", new THREE.Float32BufferAttribute(points, 3));
+    const gridMaterial = new THREE.LineBasicMaterial({
       color: GREEN,
       transparent: true,
       opacity: 0,
@@ -203,22 +234,39 @@ export function createConstructs({ container, audio, reducedMotion = false, lowP
       depthWrite: false
     });
 
-    const group = new THREE.Group();
-    for (const spec of specs) {
-      const lines = new THREE.LineSegments(new THREE.EdgesGeometry(spec.geo, 20), material);
-      lines.position.set(...spec.pos);
-      lines.rotation.set(...spec.rot);
-      lines.scale.set(...spec.scale);
-      group.add(lines);
+    const corners = [];
+    const c = half + 0.12;
+    const arm = 0.3;
+    for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      corners.push(sx * c, sy * c, 0, sx * (c - arm), sy * c, 0);
+      corners.push(sx * c, sy * c, 0, sx * c, sy * (c - arm), 0);
     }
 
-    return { group, material };
+    const cornerGeometry = new THREE.BufferGeometry();
+    cornerGeometry.setAttribute("position", new THREE.Float32BufferAttribute(corners, 3));
+    const cornerMaterial = new THREE.LineBasicMaterial({
+      color: EDGE,
+      transparent: true,
+      opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+
+    const group = new THREE.Group();
+    group.add(new THREE.LineSegments(gridGeometry, gridMaterial));
+    group.add(new THREE.LineSegments(cornerGeometry, cornerMaterial));
+
+    return { group, gridMaterial, cornerMaterial };
   }
 
-  function spawn(x, y, labelLayer) {
-    // Keep at most three on screen: the oldest breaks up early.
+  // `maxSize` (px) caps the construct so it fits a given space.
+  function spawn(x, y, labelLayer, maxSize = Infinity) {
+    // Keep at most two on screen: the oldest breaks up early.
     const building = live.filter(c => c.phase !== "dissolve");
-    if (building.length >= 3) building[0].phase = "dissolve";
+    if (building.length >= 2) {
+      building[0].phase = "dissolve";
+      building[0].t = 0;
+    }
 
     let blueprint;
     do {
@@ -229,18 +277,25 @@ export function createConstructs({ container, audio, reducedMotion = false, lowP
     const specs = blueprint.parts();
     const w = window.innerWidth;
     const h = window.innerHeight;
-    const unit = Math.max(40, Math.min(90, Math.min(w, h) * 0.1));
+    const unit = Math.max(30, Math.min(120, Math.min(w, h) * 0.12, maxSize / 3.6));
 
-    const cx = Math.min(Math.max(x, unit * 1.6), w - unit * 1.6);
-    const cy = Math.min(Math.max(y, unit * 1.6), h - unit * 2.2);
+    const cx = Math.min(Math.max(x, unit * 1.9), w - unit * 1.9);
+    const cy = Math.min(Math.max(y, unit * 1.8), h - unit * 1.8);
+    const px = cx - w / 2;
+    const py = h / 2 - cy;
 
     const root = new THREE.Group();
-    root.position.set(cx - w / 2, h / 2 - cy, 0);
+    root.position.set(px, py, 0);
     root.scale.setScalar(unit);
     root.rotation.set(0.25, -0.5 + Math.random() * 0.3, 0);
 
-    const ghost = makeGhost(specs);
-    root.add(ghost.group);
+    const frame = makeFrame();
+    frame.group.position.set(px, py, -200);
+    frame.group.scale.setScalar(unit);
+    scene.add(frame.group);
+
+    const ghosts = makeGhosts(specs);
+    ghosts.forEach(ghost => root.add(ghost.lines));
 
     const parts = specs.map((spec, i) => {
       const part = makePart(spec, i, specs.length);
@@ -249,46 +304,57 @@ export function createConstructs({ container, audio, reducedMotion = false, lowP
     });
 
     const pulse = new THREE.Mesh(
-      new THREE.RingGeometry(1.25, 1.32, 48),
+      new THREE.RingGeometry(1.25, 1.3, 64),
       new THREE.MeshBasicMaterial({ color: EDGE, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })
     );
     root.add(pulse);
 
     const label = document.createElement("div");
     label.className = "construct-label";
-    label.textContent = `Construct · ${blueprint.name}`;
+    label.textContent = blueprint.name;
     label.style.left = `${cx}px`;
-    label.style.top = `${cy + unit * 1.55}px`;
+    label.style.top = `${cy + unit * 1.7}px`;
     labelLayer.appendChild(label);
 
     scene.add(root);
 
-    const stagger = specs.length > 8 ? 0.08 : 0.16;
+    // Timeline: draw the frame, trace each part's outline, then assemble.
+    const traceGap = Math.min(0.22, 1.4 / specs.length);
+    const traceEnd = 0.6 + traceGap * specs.length + 0.3;
+    const stagger = Math.min(0.32, 2.4 / specs.length);
+    const assembleEnd = traceEnd + stagger * specs.length + 0.5;
 
     live.push({
+      name: blueprint.name,
       root,
-      ghost,
+      frame,
+      ghosts,
       parts,
       pulse,
       label,
       phase: "build",
       t: 0,
+      traceGap,
+      traceEnd,
       stagger,
-      built: 0.45 + stagger * specs.length + 0.45,
-      hold: 1.8,
-      spin: (Math.random() < 0.5 ? -1 : 1) * 0.35,
-      dissolveT: 0
+      assembleEnd,
+      locked: 0,
+      hold: 2.6,
+      spin: (Math.random() < 0.5 ? -1 : 1) * 0.3
     });
 
+    onStatus(`Blueprint · ${blueprint.name}`);
     needsClear = true;
   }
 
   function dispose(construct) {
-    construct.root.traverse(obj => {
-      obj.geometry?.dispose();
-      obj.material?.dispose();
-    });
-    scene.remove(construct.root);
+    for (const group of [construct.root, construct.frame.group]) {
+      group.traverse(obj => {
+        obj.geometry?.dispose();
+        obj.material?.dispose();
+      });
+      scene.remove(group);
+    }
     construct.label.remove();
   }
 
@@ -308,51 +374,66 @@ export function createConstructs({ container, audio, reducedMotion = false, lowP
       if (!reducedMotion) c.root.rotation.y += c.spin * dt;
 
       if (c.phase === "build") {
-        // 1. The blueprint fades in.
-        c.ghost.material.opacity = Math.min(0.18, c.t * 0.5);
+        // 1. The drawing frame appears.
+        const frameIn = Math.min(c.t / 0.5, 1);
+        c.frame.gridMaterial.opacity = frameIn * 0.07;
+        c.frame.cornerMaterial.opacity = frameIn * 0.7;
 
-        // 2. Parts fly in and lock on, one after another.
+        // 2. Each part's outline is traced, in build order.
+        c.ghosts.forEach((ghost, index) => {
+          if (c.parts[index].locked) return;
+          const k = Math.min(Math.max((c.t - 0.5 - index * c.traceGap) / 0.35, 0), 1);
+          ghost.material.opacity = k * 0.35;
+        });
+
+        // 3. Parts fly in and lock onto their outlines, one after another.
         for (const part of c.parts) {
-          const start = 0.4 + part.index * c.stagger;
-          const k = Math.min(Math.max((c.t - start) / 0.45, 0), 1);
+          const start = c.traceEnd + part.index * c.stagger;
+          const k = Math.min(Math.max((c.t - start) / 0.5, 0), 1);
           if (k <= 0) continue;
 
           const e = reducedMotion ? 1 : easeOutBack(k);
           part.holder.position.lerpVectors(part.from, part.home, Math.min(e, 1.08));
           part.holder.scale.setScalar(0.2 + 0.8 * Math.min(e, 1.05));
           part.edgeMaterial.opacity = Math.min(1, k * 2.2);
-          part.faceMaterial.opacity = 0.16 * k;
+          part.faceMaterial.opacity = 0.14 * k;
 
           if (k >= 1 && !part.locked) {
             part.locked = true;
-            part.edgeMaterial.opacity = 1;
-            part.lockFlash = 0.25;
+            part.lockFlash = 0.3;
+            c.locked += 1;
+            c.ghosts[part.index].material.opacity = 0;
             audio.construct(false);
+            onStatus(`Assembling · ${c.locked} / ${c.parts.length}`);
           }
 
           if (part.lockFlash > 0) {
             part.lockFlash -= dt;
-            part.faceMaterial.opacity = 0.16 + Math.max(0, part.lockFlash) * 1.6;
+            part.faceMaterial.opacity = 0.14 + Math.max(0, part.lockFlash) * 1.6;
           }
         }
 
-        // 3. Complete: pulse, brighten, name it.
-        if (c.t >= c.built) {
+        // 4. Complete: flare, name it, hold.
+        if (c.t >= c.assembleEnd) {
           c.phase = "hold";
           c.t = 0;
-          c.ghost.material.opacity = 0;
+          c.ghosts.forEach(ghost => (ghost.material.opacity = 0));
           c.label.classList.add("is-on");
           audio.construct(true);
+          onStatus(`Construct complete · ${c.name}`);
         }
       } else if (c.phase === "hold") {
-        const k = Math.min(c.t / 0.7, 1);
+        const k = Math.min(c.t / 0.8, 1);
         c.pulse.material.opacity = (1 - k) * 0.9;
-        c.pulse.scale.setScalar(1 + k * 0.7);
+        c.pulse.scale.setScalar(1 + k * 0.8);
         c.pulse.lookAt(camera.position);
+
+        c.frame.gridMaterial.opacity = (1 - k) * 0.07;
+        c.frame.cornerMaterial.opacity = 0.7 * (1 - k * 0.6);
 
         const glow = 0.22 + 0.06 * Math.sin(c.t * 6);
         for (const part of c.parts) {
-          part.faceMaterial.opacity = glow + (1 - k) * 0.3;
+          part.faceMaterial.opacity = glow + (1 - k) * 0.35;
           part.edgeMaterial.opacity = 1;
         }
 
@@ -361,25 +442,26 @@ export function createConstructs({ container, audio, reducedMotion = false, lowP
           c.t = 0;
         }
       } else {
-        // 4. Break apart: parts drift out and fade, last built first.
-        c.dissolveT += dt;
+        // 5. Break apart: the last part built goes first.
         c.label.classList.remove("is-on");
         let alive = false;
 
         for (const part of c.parts) {
-          const start = (part.count - 1 - part.index) * 0.05;
-          const k = Math.min(Math.max((c.dissolveT - start) / 0.6, 0), 1);
+          const start = (part.count - 1 - part.index) * 0.06;
+          const k = Math.min(Math.max((c.t - start) / 0.6, 0), 1);
           if (k < 1) alive = true;
 
           const e = easeIn(k);
           part.holder.position.lerpVectors(part.home, part.from, e * 0.5);
-          part.holder.scale.setScalar(1 - e * 0.6);
-          part.edgeMaterial.opacity = (1 - k) * (k > 0 ? 1 : part.edgeMaterial.opacity);
+          part.holder.scale.setScalar(Math.max(0.01, 1 - e * 0.6));
+          part.edgeMaterial.opacity = Math.min(part.edgeMaterial.opacity, 1 - k);
           part.faceMaterial.opacity = (1 - k) * 0.2;
         }
 
-        c.ghost.material.opacity = 0;
+        c.ghosts.forEach(ghost => (ghost.material.opacity = 0));
         c.pulse.material.opacity = 0;
+        c.frame.gridMaterial.opacity = 0;
+        c.frame.cornerMaterial.opacity = Math.max(0, c.frame.cornerMaterial.opacity - dt * 2);
 
         if (!alive) {
           dispose(c);
@@ -397,5 +479,14 @@ export function createConstructs({ container, audio, reducedMotion = false, lowP
     needsClear = true;
   }
 
-  return { spawn, update, resize, clear };
+  // Build one centred in a given open area of the screen.
+  function spawnCenter(labelLayer, area = null) {
+    if (!area) {
+      spawn(window.innerWidth / 2, window.innerHeight * 0.52, labelLayer);
+      return;
+    }
+    spawn(area.x, area.y, labelLayer, area.size);
+  }
+
+  return { spawn, spawnCenter, update, resize, clear };
 }

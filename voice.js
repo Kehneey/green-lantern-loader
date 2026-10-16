@@ -8,29 +8,29 @@
 // - When muted or unsupported it still runs the same timing silently, so the
 //   experience never waits on audio.
 
-// Best first. Natural/neural voices sound far less robotic.
-const PREFERRED = [
-  /Andrew.*Natural/i,
-  /Guy.*Natural/i,
-  /Brian.*Natural/i,
-  /Christopher.*Natural/i,
-  /Ryan.*Natural/i,
-  /Eric.*Natural/i,
-  /Davis.*Natural/i,
-  /Natural/i,
-  /Google UK English Male/i,
-  /Daniel/i,
-  /Arthur/i,
-  /Alex/i,
-  /Aaron/i,
-  /Microsoft (Ryan|Guy|George|David|Mark|Andrew)/i,
-  /Google US English/i
-];
+// Best first. Natural/neural voices (Edge, Safari, Android) sound human;
+// older system voices sound robotic and are ranked last.
+const PREFERRED = {
+  // The oath: a deep, steady male voice.
+  oath: [
+    /Andrew.*Natural/i, /Guy.*Natural/i, /Brian.*Natural/i, /Christopher.*Natural/i,
+    /Ryan.*Natural/i, /Eric.*Natural/i, /Davis.*Natural/i, /Thomas.*Natural/i,
+    /Google UK English Male/i, /Daniel/i, /Arthur/i, /Alex/i, /Aaron/i,
+    /Microsoft (Ryan|Guy|George|David|Mark|Andrew)/i, /Google US English/i
+  ],
+  // The ring: a calm, warm, clear voice, like a well-made assistant.
+  ring: [
+    /Aria.*Natural/i, /Jenny.*Natural/i, /Sonia.*Natural/i, /Libby.*Natural/i,
+    /Ava.*Natural/i, /Emma.*Natural/i, /Michelle.*Natural/i, /Natasha.*Natural/i,
+    /Samantha/i, /Serena/i, /Karen/i, /Moira/i, /Google UK English Female/i,
+    /Google US English/i, /Microsoft (Zira|Hazel|Susan)/i
+  ]
+};
 
 export function createVoice({ audio = null, onSpeakingChange = () => {} } = {}) {
   const synth = "speechSynthesis" in window ? window.speechSynthesis : null;
 
-  let voice = null;
+  const voices = { oath: null, ring: null };
   let muted = false;
   let unlocked = false;
   let current = null;
@@ -39,12 +39,14 @@ export function createVoice({ audio = null, onSpeakingChange = () => {} } = {}) 
   // its events, so keep a reference until it ends.
   const alive = new Set();
 
-  function score(candidate) {
+  function score(candidate, list) {
     if (!/^en([-_]|$)/i.test(candidate.lang)) return -1;
 
-    const rank = PREFERRED.findIndex(pattern => pattern.test(candidate.name));
+    const rank = list.findIndex(pattern => pattern.test(candidate.name));
     let value = rank === -1 ? 0 : 100 - rank;
 
+    // Any natural/neural voice beats any classic one.
+    if (/Natural|Neural|Premium|Enhanced/i.test(candidate.name)) value += 30;
     if (/en[-_]GB/i.test(candidate.lang)) value += 4;
     if (/en[-_]US/i.test(candidate.lang)) value += 3;
 
@@ -54,18 +56,22 @@ export function createVoice({ audio = null, onSpeakingChange = () => {} } = {}) 
   function pickVoice() {
     if (!synth) return;
 
-    let best = null;
-    let bestScore = -1;
+    const all = synth.getVoices();
 
-    for (const candidate of synth.getVoices()) {
-      const value = score(candidate);
-      if (value > bestScore) {
-        best = candidate;
-        bestScore = value;
+    for (const role of Object.keys(PREFERRED)) {
+      let best = null;
+      let bestScore = -1;
+
+      for (const candidate of all) {
+        const value = score(candidate, PREFERRED[role]);
+        if (value > bestScore) {
+          best = candidate;
+          bestScore = value;
+        }
       }
-    }
 
-    voice = best;
+      voices[role] = best;
+    }
   }
 
   if (synth) {
@@ -109,7 +115,7 @@ export function createVoice({ audio = null, onSpeakingChange = () => {} } = {}) 
   // once at the end. Returns a handle with cancel().
   // `synthesize: false` means a recording or nothing: the words still appear
   // on time, but the browser's built-in voice is never used.
-  function say(text, { rate = 0.92, pitch = 0.9, clip = "", synthesize = true, onWord, onDone } = {}) {
+  function say(text, { rate = 0.92, pitch = 1, clip = "", role = "oath", synthesize = true, onWord, onDone } = {}) {
     stop();
 
     const words = [...text.matchAll(/\S+/g)].map(match => ({
@@ -208,6 +214,8 @@ export function createVoice({ audio = null, onSpeakingChange = () => {} } = {}) 
 
     const utterance = new SpeechSynthesisUtterance(text);
 
+    const voice = voices[role] || voices.oath;
+
     if (voice) {
       utterance.voice = voice;
       utterance.lang = voice.lang;
@@ -300,7 +308,7 @@ export function createVoice({ audio = null, onSpeakingChange = () => {} } = {}) 
       return Boolean(synth);
     },
     get voiceName() {
-      return voice ? voice.name : "";
+      return `${voices.oath?.name || ""} / ${voices.ring?.name || ""}`;
     }
   };
 }

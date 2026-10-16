@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=Inter:wght@200;300;400;500;600&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syncopate:wght@400;700&family=Inter:wght@300;400;500;600&display=swap"
     />
     <link rel="stylesheet" href="style.css" />
 
@@ -82,55 +82,47 @@
       <div class="flash" id="flash"></div>
 
       <section class="reveal" id="reveal" aria-hidden="true" aria-labelledby="revealTitle">
-        <div class="reveal-inner">
+        <div class="reveal-head">
           <span class="reveal-kicker">Ring fully charged</span>
-
           <h1 id="revealTitle">
             <span class="title-line">Welcome,</span>
             <span class="title-line title-accent">Green Lantern</span>
           </h1>
+          <p class="reveal-sector">Sector 2814 &nbsp;·&nbsp; Earth's Guardian</p>
+          <p class="reveal-id"><span id="callsign"></span> &nbsp;·&nbsp; <span id="lanternId"></span> &nbsp;·&nbsp; charged in <span id="chargeTime"></span></p>
+        </div>
 
-          <p class="reveal-sector">Sector 2814 · Earth's Guardian</p>
-
-          <dl class="id-card" aria-label="Your Lantern ID">
-            <div class="id-row"><dt>Callsign</dt><dd id="callsign"></dd></div>
-            <div class="id-row"><dt>Lantern ID</dt><dd id="lanternId"></dd></div>
-            <div class="id-row"><dt>Charge time</dt><dd id="chargeTime"></dd></div>
-            <div class="id-row optional"><dt>Fear detected</dt><dd>0%</dd></div>
-          </dl>
-
-          <p class="dispatch" id="dispatch" aria-live="polite"></p>
-
+        <div class="reveal-foot">
+          <p class="construct-readout" id="constructReadout" aria-live="polite">Your will, made solid. Build a construct.</p>
           <div class="reveal-actions">
-            <button id="reroll" type="button">New callsign</button>
+            <button id="buildBtn" type="button" class="primary">Build a construct</button>
             <button id="copyId" type="button">Copy ID</button>
-            <button id="restart" type="button" class="primary">Recharge</button>
+            <button id="restart" type="button">Recharge</button>
           </div>
-
-          <p class="reveal-hint">Tap anywhere to build a construct</p>
+          <p class="reveal-hint">Or tap anywhere</p>
         </div>
       </section>
 
       <div class="constructs" id="constructs" aria-hidden="true"></div>
 
       <!-- Title sequence -->
-      <section class="intro" id="intro" aria-label="Loading">
-        <div class="intro-load" id="introLoad">
-          <span class="intro-count" id="introCount">000</span>
-          <span class="intro-rule"><span id="introFill"></span></span>
-          <span class="intro-label" id="introLabel">Forging the ring</span>
-        </div>
-
-        <div class="intro-title" id="introTitle">
-          <span class="intro-kicker">In brightest day · In blackest night</span>
-          <h1 class="intro-name">Sector 2814</h1>
+      <section class="intro" id="intro" aria-label="Title">
+        <div class="intro-title">
+          <span class="intro-kicker">In brightest day &nbsp;·&nbsp; In blackest night</span>
+          <h1 class="intro-name">Sector<br /><span>2814</span></h1>
           <span class="intro-sub">Every ring chooses</span>
-          <button class="enter" id="enterBtn" type="button">
-            <span class="enter-ring" aria-hidden="true"></span>
-            <span>Enter</span>
+
+          <button class="enter" id="enterBtn" type="button" disabled>
+            <svg class="enter-progress" viewBox="0 0 100 100" aria-hidden="true">
+              <circle cx="50" cy="50" r="48"></circle>
+              <circle class="enter-fill" id="enterFill" cx="50" cy="50" r="48"></circle>
+            </svg>
+            <span id="enterLabel">Loading</span>
           </button>
+
           <span class="intro-note">Best experienced with sound</span>
-          <button class="enter-quiet" id="enterQuiet" type="button">Enter without sound</button>
+          <button class="enter-quiet" id="enterQuiet" type="button" disabled>Enter without sound</button>
+          <span class="intro-label" id="introLabel"></span>
         </div>
       </section>
 

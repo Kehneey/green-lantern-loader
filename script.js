@@ -34,9 +34,9 @@ const flash = $("flash");
 const reveal = $("reveal");
 const restart = $("restart");
 const introEl = $("intro");
-const introCount = $("introCount");
-const introFill = $("introFill");
 const introLabel = $("introLabel");
+const enterFill = $("enterFill");
+const enterLabel = $("enterLabel");
 const enterBtn = $("enterBtn");
 const enterQuiet = $("enterQuiet");
 const soundToggle = $("soundToggle");
@@ -54,9 +54,9 @@ const edgeRight = $("edgeRight");
 const callsignEl = $("callsign");
 const lanternIdEl = $("lanternId");
 const chargeTimeEl = $("chargeTime");
-const dispatchEl = $("dispatch");
-const rerollBtn = $("reroll");
 const copyBtn = $("copyId");
+const buildBtn = $("buildBtn");
+const constructReadout = $("constructReadout");
 
 /* ===================================== */
 /* TUNING                                */
@@ -234,62 +234,6 @@ composer.addPass(new RenderPass(scene, camera));
 const bloomPass = new UnrealBloomPass(new THREE.Vector2(vw() / 2, vh() / 2), 0.5, 0.55, 0.86);
 composer.addPass(bloomPass);
 composer.addPass(new OutputPass());
-
-// Light shafts: a radial blur of the brightest pixels out from the lens, the
-// classic "volumetric" god-ray look. Runs in linear HDR, before tone mapping.
-const SHAFT_SAMPLES = LOW_POWER ? 24 : 40;
-
-const shaftPass = new ShaderPass({
-  uniforms: {
-    tDiffuse: { value: null },
-    uLight: { value: new THREE.Vector2(0.5, 0.6) },
-    uStrength: { value: 0.5 }
-  },
-  vertexShader: /* glsl */ `
-    varying vec2 vUv;
-    void main() {
-      vUv = uv;
-      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    }
-  `,
-  fragmentShader: /* glsl */ `
-    #define SAMPLES ${SHAFT_SAMPLES}
-    uniform sampler2D tDiffuse;
-    uniform vec2 uLight;
-    uniform float uStrength;
-    varying vec2 vUv;
-
-    float hash(vec2 p) {
-      return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
-    }
-
-    void main() {
-      vec4 base = texture2D(tDiffuse, vUv);
-      vec2 delta = (vUv - uLight) / float(SAMPLES) * 0.6;
-
-      // Start each pixel's march at a random offset so the samples don't band.
-      vec2 uv = vUv - delta * hash(vUv * 1000.0);
-      float decay = 1.0;
-      vec3 rays = vec3(0.0);
-
-      for (int i = 0; i < SAMPLES; i++) {
-        uv -= delta;
-        vec3 s = texture2D(tDiffuse, uv).rgb;
-
-        // Only light near the lens casts shafts, not every highlight.
-        float nearLens = smoothstep(0.22, 0.0, distance(uv, uLight));
-        float bright = max(0.0, max(s.g, max(s.r, s.b)) - 0.85) * nearLens;
-
-        rays += s * bright * decay;
-        decay *= 0.955;
-      }
-
-      gl_FragColor = vec4(base.rgb + rays * (uStrength / float(SAMPLES)), base.a);
-    }
-  `
-});
-
-composer.insertPass(shaftPass, 2);
 
 // Film finish: colour grade (cool shadows, soft S-curve), vignette, a touch of
 // chromatic aberration, grain, and a fade from black for the opening.
@@ -811,10 +755,8 @@ async function loadAssets() {
   const progress = [0, 0];
   const report = () => {
     const value = (progress[0] + progress[1]) / 2;
-    const percent = Math.round(value * 100);
-    introFill.style.width = `${percent}%`;
-    introCount.textContent = String(percent).padStart(3, "0");
-    if (value >= 1) introLabel.textContent = "Igniting";
+    // The Enter button's ring is the loading bar.
+    enterFill.style.strokeDashoffset = (301.6 * (1 - value)).toFixed(1);
   };
 
   const loader = new GLTFLoader();
@@ -878,14 +820,20 @@ async function loadAssets() {
   battery.userData.socket = new THREE.Vector3(0, 0, frontZ);
 
   lensGlow = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), additive(glowTexture, 0x9dffc0, 0));
+  lensGlow.material.depthTest = false;
+  lensGlow.renderOrder = 5;
   lensGlow.position.copy(battery.userData.socket).add(new THREE.Vector3(0, 0, 0.05));
   battery.add(lensGlow);
 
   lensHalo = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), additive(glowTexture, 0x20ff74, 0));
+  lensHalo.material.depthTest = false;
+  lensHalo.renderOrder = 4;
   lensHalo.position.copy(battery.userData.socket).add(new THREE.Vector3(0, 0, 0.03));
   battery.add(lensHalo);
 
   flare = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), additive(flareTexture, 0xb8ffd0, 0));
+  flare.material.depthTest = false;
+  flare.renderOrder = 6;
   flare.position.copy(battery.userData.socket).add(new THREE.Vector3(0, 0, 0.08));
   battery.add(flare);
 
@@ -924,8 +872,15 @@ function computeLayout() {
   const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
   const portrait = aspect < 0.9;
 
-  const heightFrac = portrait ? 0.36 : 0.44;
-  const centerFrac = portrait ? 0.3 : 0.34;
+  // A 2.39:1 letterbox on landscape screens; slim bars on portrait phones.
+  layout.bar = aspect > 1.2 ? clamp((h - w / 2.39) / 2, 40, h * 0.16) : clamp(h * 0.055, 40, 64);
+  loaderEl.style.setProperty("--bar", `${layout.bar.toFixed(1)}px`);
+
+  // Frame the lantern inside the picture (between the bars), not the screen:
+  // upper half of the picture, leaving room for the oath and the ring below.
+  const picture = h - 2 * layout.bar;
+  const heightFrac = (picture * (portrait ? 0.38 : 0.44)) / h;
+  const centerFrac = (layout.bar + picture * (portrait ? 0.3 : 0.36)) / h;
 
   const z = Math.max(BATTERY_HEIGHT / (2 * t * heightFrac), batteryWidth / (2 * t * 0.84 * aspect));
   const actualHeight = BATTERY_HEIGHT / (2 * t * z);
@@ -933,10 +888,7 @@ function computeLayout() {
   layout.z = z;
   layout.batteryY = (0.5 - centerFrac) * 2 * t * z;
   layout.lanternBottom = centerFrac + actualHeight / 2;
-  // A 2.39:1 letterbox on landscape screens; slim bars on portrait phones.
-  layout.bar = aspect > 1.2 ? clamp((h - w / 2.39) / 2, 40, h * 0.16) : clamp(h * 0.055, 40, 64);
-  loaderEl.style.setProperty("--bar", `${layout.bar.toFixed(1)}px`);
-  layout.floorY = h - layout.bar - h * (portrait ? 0.15 : 0.16);
+  layout.floorY = h - layout.bar - picture * (portrait ? 0.16 : 0.2);
 
   loaderEl.style.setProperty("--lantern-bottom", `${(layout.lanternBottom * 100).toFixed(2)}%`);
 }
@@ -1120,7 +1072,7 @@ function wakeRing() {
   const y = clamp(ringBody.y - ringRadiusPx() * 3.4, layout.bar + 60, vh() * 0.7);
   cue("Ring power · 2%", x, y, { sub: "Recharge required", life: 3200 });
 
-  ringSay("Ring power at two percent. Recharge required.", { clip: "vo_ring_low" });
+  ringSay("Ring power at two percent... Recharge required.", { clip: "vo_ring_low" });
   announce("Ring power at two percent. Take the ring to the lantern.");
 
   pendingStage = { stage: Stage.SEEK, at: elapsed + 1.4 };
@@ -1630,6 +1582,7 @@ function updateBeam() {
 
 let emitCarry = 0;
 let sparkCarry = 0;
+let afterglow = 1.6;
 
 function updateEnergy(time, dt) {
   const charging = isCharging();
@@ -1643,21 +1596,33 @@ function updateEnergy(time, dt) {
   const build = stage === Stage.FINALE || stage === Stage.WELCOME
     ? THREE.MathUtils.smoothstep(finishTime / FINISH_PEAK, 0, 1)
     : 0;
-  const energy = Math.min(1.6, level * 0.85 + build * 0.9 + (charging ? 0.06 : 0));
+  let energy = Math.min(1.6, level * 0.85 + build * 0.9 + (charging ? 0.06 : 0));
+  if (stage === Stage.WELCOME) {
+    afterglow = damp(afterglow, 0.3, 0.6, dt);
+    energy = Math.min(energy, afterglow);
+  } else {
+    afterglow = 1.6;
+  }
 
-  lensGlow.scale.setScalar(0.55 + proximity * 0.06 + energy * 0.32);
+  // Billboard the lens sprites (they live inside the battery group).
+  scratch.q.copy(battery.quaternion).invert().multiply(camera.quaternion);
+  lensGlow.quaternion.copy(scratch.q);
+  lensHalo.quaternion.copy(scratch.q);
+  flare.quaternion.copy(scratch.q);
+
+  lensGlow.scale.setScalar(0.45 + proximity * 0.05 + energy * 0.22);
   lensGlow.material.opacity = Math.min(
     0.85,
     (0.08 + proximity * 0.12 + energy * (0.38 + pulse * 0.14) + flicker) *
       (stage === Stage.DOCKED ? 0.45 : 1)
   );
 
-  lensHalo.scale.setScalar(1.3 + proximity * 0.3 + energy * 1.1);
+  lensHalo.scale.setScalar(1.1 + proximity * 0.2 + energy * 0.7);
   lensHalo.material.opacity =
     Math.min(0.7, 0.08 + proximity * 0.14 + energy * 0.3) * (stage === Stage.DOCKED ? 0.6 : 1);
 
-  flare.scale.set(1.4 + energy * 4.6, 0.08 + energy * 0.16, 1);
-  flare.material.opacity = Math.min(1, Math.max(0, energy - 0.12) * 0.9 + (build > 0 ? 0.1 : 0));
+  flare.scale.set(1 + energy * 2.6, 0.05 + energy * 0.08, 1);
+  flare.material.opacity = Math.min(0.7, Math.max(0, energy - 0.2) * 0.6);
 
   batteryUniforms.uGlow.value = 0.25 + proximity * 0.5 + energy * (2.4 + pulse * 0.6);
   batteryUniforms.uRim.value = proximity * 0.15 + energy * (0.9 + pulse * 0.3);
@@ -1694,24 +1659,18 @@ function updateEnergy(time, dt) {
   contactLight.position.copy(ring.position);
   contactLight.position.z += 0.25;
   contactLight.intensity =
-    0.15 + life * (proximity * 0.9 + (stage === Stage.DOCKED ? 0.8 : 0) + (charging ? 1.2 : 0)) + energy * 3.4;
+    0.1 + life * (proximity * 0.5 + (stage === Stage.DOCKED ? 0.4 : 0) + (charging ? 0.6 : 0)) + energy * 1.6;
   contactLight.distance = 5 + energy * 2.5;
 
   rimLight.intensity = 3.4 + energy * 1.6;
 
-  bloomPass.strength = 0.4 + proximity * 0.06 + energy * 0.42;
-  bloomPass.radius = 0.5 + energy * 0.12;
-  bloomPass.threshold = 0.9 - energy * 0.06;
+  bloomPass.strength = 0.32 + proximity * 0.05 + energy * 0.32;
+  bloomPass.radius = 0.38 + energy * 0.08;
+  bloomPass.threshold = 0.92 - energy * 0.04;
 
   lensPass.uniforms.uTime.value = time;
   lensPass.uniforms.uAberration.value = REDUCED_MOTION ? 0.0008 : 0.0012 + energy * 0.0034;
 
-  shaftPass.uniforms.uLight.value.set(
-    scratch.socketScreen.x / vw(),
-    1 - scratch.socketScreen.y / vh()
-  );
-  // Shafts build with the charge: barely there at rest, flooding the frame at the end.
-  shaftPass.uniforms.uStrength.value = 0.1 + proximity * 0.25 + energy * 2.4;
 
   hazeBack.uniforms.uTime.value = time;
   hazeFront.uniforms.uTime.value = time;
@@ -1835,9 +1794,11 @@ function haptic(pattern) {
 /* ===================================== */
 
 // The ring speaks in a brighter, quicker voice than the oath.
+// The ring speaks with its own calm, natural voice: a recording if there is
+// one, otherwise the most human-sounding voice the device has.
 function ringSay(text, options = {}) {
   if (oath.speaking) return;
-  voice.say(text, { rate: 1.0, pitch: 1.08, synthesize: false, ...options });
+  voice.say(text, { role: "ring", rate: 0.94, pitch: 1, ...options });
 }
 
 const oath = createOath({
@@ -2041,11 +2002,11 @@ function startFinish() {
 function maybeSpeakWelcome() {
   if (welcomeSpoken || !finaleLineDone || !revealShown) return;
   welcomeSpoken = true;
-  voice.say("Welcome, Green Lantern of Sector two eight one four. Earth's guardian.", {
+  voice.say("Welcome, Green Lantern of Sector twenty-eight fourteen... Earth's guardian.", {
     clip: "vo_welcome",
-    synthesize: false,
+    role: "ring",
     rate: 0.9,
-    pitch: 1.0
+    pitch: 1
   });
 }
 
@@ -2070,11 +2031,11 @@ function updateFinish(dt) {
 
     cue("Ring fully charged", vw() / 2, vh() * 0.42, { title: true, life: 2400 });
 
-    voice.say("Ring fully charged.", {
+    voice.say("Ring... fully charged.", {
       clip: "vo_ring_full",
-      synthesize: false,
-      rate: 1.0,
-      pitch: 1.08,
+      role: "ring",
+      rate: 0.92,
+      pitch: 1,
       onDone: () => {
         finaleLineDone = true;
         maybeSpeakWelcome();
@@ -2105,7 +2066,7 @@ function updateFinish(dt) {
     startWelcome();
     reveal.classList.add("visible");
     reveal.setAttribute("aria-hidden", "false");
-    restart.focus({ preventScroll: true });
+    buildBtn.focus({ preventScroll: true });
     maybeSpeakWelcome();
   }
 }
@@ -2121,54 +2082,14 @@ const CALLSIGNS = [
   "Fearless Frank", "Nightwatch", "Lantern Larry", "Captain Chartreuse"
 ];
 
-const DISPATCHES = [
-  "Guardians of the Universe: \"Congratulations. Please do not break the ring.\"",
-  "Scanning Sector 2814... no threats detected. Suspiciously quiet.",
-  "Reminder: your ring must be recharged every 24 hours. Set an alarm.",
-  "Oa has assigned you a locker. It is green.",
-  "Yellow objects are now officially your problem.",
-  "Tip: the oath is not optional. Say it with feeling.",
-  "Your ring is 100% charged. Your coffee is not.",
-  "Incoming transmission: a cat is stuck in a tree in Sector 2814. Priority: emerald."
-];
-
 let callsign = "";
 let lanternId = "";
-let dispatchTimer = 0;
-let dispatchIndex = 0;
 let copyTimer = 0;
+let firstConstructTimer = 0;
 
 function rollCallsign() {
   callsign = pick(CALLSIGNS, callsign);
   callsignEl.textContent = callsign;
-}
-
-function typeDispatch(text, done) {
-  window.clearTimeout(dispatchTimer);
-
-  if (REDUCED_MOTION) {
-    dispatchEl.textContent = text;
-    dispatchTimer = window.setTimeout(done, 4200);
-    return;
-  }
-
-  let i = 0;
-  dispatchEl.textContent = "";
-
-  const step = () => {
-    i += 1;
-    dispatchEl.textContent = text.slice(0, i);
-    dispatchTimer = window.setTimeout(i < text.length ? step : done, i < text.length ? 24 + Math.random() * 30 : 3200);
-  };
-
-  step();
-}
-
-function runDispatches() {
-  typeDispatch(DISPATCHES[dispatchIndex % DISPATCHES.length], () => {
-    dispatchIndex += 1;
-    runDispatches();
-  });
 }
 
 function startWelcome() {
@@ -2177,20 +2098,16 @@ function startWelcome() {
   lanternIdEl.textContent = lanternId;
   chargeTimeEl.textContent = `${holdSeconds.toFixed(1)} s`;
   rollCallsign();
-  dispatchIndex = Math.floor(Math.random() * DISPATCHES.length);
-  dispatchTimer = window.setTimeout(runDispatches, 3200);
+  constructReadout.textContent = "Your will, made solid. Build a construct.";
+
+  // Show what the ring can do: build the first construct unprompted.
+  firstConstructTimer = window.setTimeout(() => constructs.spawnCenter(constructsEl, constructArea()), 4200);
 }
 
 function stopWelcome() {
   document.body.classList.remove("is-welcome");
-  window.clearTimeout(dispatchTimer);
-  dispatchEl.textContent = "";
+  window.clearTimeout(firstConstructTimer);
 }
-
-rerollBtn.addEventListener("click", () => {
-  rollCallsign();
-  audio.ui();
-});
 
 copyBtn.addEventListener("click", async () => {
   const text =
@@ -2209,21 +2126,42 @@ copyBtn.addEventListener("click", async () => {
   copyBtn.textContent = ok ? "Copied!" : "Copy failed";
   window.clearTimeout(copyTimer);
   copyTimer = window.setTimeout(() => {
-    copyBtn.textContent = "Copy Lantern ID";
+    copyBtn.textContent = "Copy ID";
   }, 1600);
 });
 
-// Tap anywhere on the welcome page to build a construct there.
+// The ending is a construct stage: tap anywhere (or the button) and the ring
+// builds a random construct, blueprint first, then part by part.
+
+// The open space between the title and the buttons, where constructs go.
+function constructArea() {
+  const head = reveal.querySelector(".reveal-head").getBoundingClientRect();
+  const foot = reveal.querySelector(".reveal-foot").getBoundingClientRect();
+  const top = head.bottom + 12;
+  const bottom = foot.top - 12;
+  return { x: vw() / 2, y: (top + bottom) / 2, size: Math.max(120, bottom - top) };
+}
 const constructs = createConstructs({
   container: constructsEl,
   audio,
   reducedMotion: REDUCED_MOTION,
-  lowPower: LOW_POWER
+  lowPower: LOW_POWER,
+  onStatus: text => {
+    constructReadout.textContent = text;
+  }
 });
 
 reveal.addEventListener("pointerdown", event => {
   if (event.target.closest("button, a")) return;
-  constructs.spawn(event.clientX, event.clientY, constructsEl);
+  window.clearTimeout(firstConstructTimer);
+  const area = constructArea();
+  constructs.spawn(event.clientX, event.clientY, constructsEl, area.size);
+  haptic(12);
+});
+
+buildBtn.addEventListener("click", () => {
+  window.clearTimeout(firstConstructTimer);
+  constructs.spawnCenter(constructsEl, constructArea());
   haptic(12);
 });
 
@@ -2318,6 +2256,7 @@ function announce(text) {
 const cameraLook = new THREE.Vector3();
 let dockView = 0;
 let openingPush = 1;
+let endingPull = 0;
 let entered = false;
 
 function updateCamera(time, dt) {
@@ -2337,7 +2276,9 @@ function updateCamera(time, dt) {
 
   // Slow dolly toward the lens as the charge builds, a big push at the finale.
   const level = powered ? charge : 0;
-  const zTarget = layout.z - level * 0.55 - attractionLevel * 0.1 - build * 0.6 - punch + openingPush * 7;
+  const ending = stage === Stage.WELCOME ? 1 : 0;
+  endingPull = damp(endingPull, ending, 0.5, dt);
+  const zTarget = layout.z - level * 0.3 - attractionLevel * 0.1 - build * 0.6 * (1 - endingPull) - punch + openingPush * 7 + endingPull * 9;
 
   let xTarget = 0;
   let yTarget = 0;
@@ -2353,7 +2294,7 @@ function updateCamera(time, dt) {
   const onLantern = stage === Stage.DOCKED || stage === Stage.FINALE || stage === Stage.WELCOME;
   dockView = damp(dockView, onLantern ? 1 : 0, 1.1, dt);
   xTarget += dockView * layout.z * 0.42;
-  yTarget += dockView * 0.7;
+  yTarget += dockView * 0.25;
 
   camera.position.x = damp(camera.position.x, xTarget, 2.2, dt);
   camera.position.y = damp(camera.position.y, yTarget, 2.2, dt);
@@ -2380,7 +2321,9 @@ function animate(now) {
 
   if (!ready) return;
 
-  battery.position.y = layout.batteryY + Math.sin(elapsed * 0.85) * 0.012;
+  // At the ending the lantern rises to glow behind the title, leaving the
+  // middle of the frame open for constructs.
+  battery.position.y = layout.batteryY + Math.sin(elapsed * 0.85) * 0.012 + endingPull * layout.z * 0.17;
 
   updateCamera(elapsed, dt);
   updateSocket();
@@ -2433,11 +2376,11 @@ loadAssets()
     ready = true;
     setStage(Stage.INTRO);
 
-    // Let the counter sit at 100 for a beat, then bring up the title card.
-    window.setTimeout(() => {
-      introEl.classList.add("is-ready");
-      enterBtn.focus({ preventScroll: true });
-    }, 700);
+    enterFill.style.strokeDashoffset = "0";
+    enterLabel.textContent = "Enter";
+    enterBtn.disabled = false;
+    enterQuiet.disabled = false;
+    enterBtn.focus({ preventScroll: true });
   })
   .catch(error => {
     console.error(error);

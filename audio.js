@@ -496,6 +496,13 @@ export function createAudio() {
     burst({ type: "lowpass", from: 9000, to: 160, duration: 2.0, attack: 0.004, peak: 0.45, q: 0.5 });
   }
 
+  // A soft chime as the ending appears.
+  function reveal() {
+    if (!ready) return;
+    tone({ from: 1568, duration: 2.4, attack: 0.02, peak: 0.035 });
+    tone({ from: 2349, duration: 2.8, attack: 0.02, start: 0.08, peak: 0.018 });
+  }
+
   function ui() {
     if (!ready || play("sfx_ui", { volume: 0.6 })) return;
     tone({ from: 1320, to: 1760, duration: 0.15, peak: 0.03 });
@@ -560,6 +567,7 @@ export function createAudio() {
     finishStart,
     finishBoom,
     ui,
+    reveal,
     construct,
     setMuted,
     suspend,

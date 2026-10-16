@@ -4,15 +4,15 @@ An interactive Three.js loader: wake the power ring, charge it on the lantern wh
 
 ## The experience
 
-It opens like a film site: a load counter, a title card and **Enter** (with or without sound). Then the picture fades up in 2.39:1 letterbox with chapter markers and a ring-power timecode along the bottom.
+It opens on a film title card (the Enter ring fills as the models load), then **Enter** (with or without sound) fades the picture up in 2.39:1 letterbox, with chapter markers and a ring-power timecode along the bottom.
 
 1. **Pick up the ring.** It lies dead at the bottom of the screen. The mouse pointer becomes a green glove: grab the ring (click it, or press and drag). On a phone, touch and drag it; it floats just above your finger so you can see it.
 2. **Knock it against the side of the screen.** Edges glow to show where. A proper knock flashes light at the edge, the ring flickers awake and reports: "Ring power at two percent. Recharge required."
 3. **Take it to the lantern.** As it nears the lens the ring turns its head toward it, then seats head-first in the lens while the camera swings round to a three-quarter view.
-4. **Hold to charge.** As the charge climbs, the oath is spoken line by line and each word resolves onto the screen in cinematic type as it is said. Let go and the charge pauses (and slowly drains); the oath never repeats or talks over itself, and the ring will not finish until the whole oath has been said.
-5. **Finale.** "Ring fully charged." Flash, shockwave, then the welcome page: *Welcome, Green Lantern of Sector 2814. Earth's guardian.*
+4. **Hold to charge.** As the charge climbs, the oath is spoken line by line and each line lands as a huge trailer title card, word by word, as it is said. Let go and the charge pauses (and slowly drains); the oath never repeats or talks over itself, and the ring will not finish until the whole oath has been said.
+5. **Finale.** The ring says "Ring fully charged." Flash, shockwave, then the ending: *Welcome, Green Lantern of Sector 2814. Earth's guardian.*
 
-On the welcome page, tap anywhere to build a construct: a blueprint of the object appears, its parts fly in and lock into place one by one, and the finished construct pulses, is named, then breaks apart.
+The ending is a construct stage. The lantern settles behind the title, and the ring builds constructs in the open frame: a drawing frame appears, each part's outline is traced in order, the parts fly in and lock onto their outlines ("Assembling 3 / 7"), then the finished construct flares, is named, holds and breaks apart. The first one builds on its own; after that, press **Build a construct** or tap anywhere.
 
 If you hesitate, a ghost glove demonstrates the next move. Drop the ring and it falls and bounces; you can even throw it at the edge. Knock it again later for a quick power reading.
 
