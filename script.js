@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
-import { toCreasedNormals } from "three/addons/utils/BufferGeometryUtils.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
@@ -9,6 +8,7 @@ import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js"
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { createAudio } from "./audio.js";
+import { creasedNormals } from "./geometry.js";
 import { createVoice } from "./voice.js";
 import { createOath, TRACK_END } from "./oath.js";
 import { createHand, createGhost } from "./hand.js";
@@ -91,7 +91,11 @@ const GRAVITY = 2600;      // px/s², for a dropped or thrown ring
 const KNOCK_SPEED = 420;   // px/s the ring must be moving to "knock" the edge
 const HINT_DELAY = 3.2;    // seconds of hesitation before the ghost glove demonstrates
 
-const MAX_PIXEL_RATIO = LOW_POWER ? 1.4 : 1.75;
+// Render resolution adapts to keep frames smooth (see updateQuality). These
+// are the starting point and the bounds it moves within.
+const MAX_PIXEL_RATIO = Math.min(window.devicePixelRatio || 1, LOW_POWER ? 1.5 : 1.75);
+const MIN_PIXEL_RATIO = Math.min(MAX_PIXEL_RATIO, LOW_POWER ? 0.75 : 1);
+let renderScale = LOW_POWER ? Math.min(MAX_PIXEL_RATIO, 1.25) : MAX_PIXEL_RATIO;
 
 /* ===================================== */
 /* STATE                                 */
@@ -196,7 +200,7 @@ camera.position.set(0, 0, CAMERA_Z);
 
 let renderer = null;
 try {
-  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: "high-performance" });
+  renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: "high-performance" });
 } catch (error) {
   renderer = null;
 }
@@ -207,7 +211,7 @@ if (!renderer) {
   throw new Error("WebGL unavailable");
 }
 
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
+renderer.setPixelRatio(renderScale);
 renderer.setSize(vw(), vh());
 renderer.setClearColor(0x000000, 0);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -228,7 +232,13 @@ pmrem.dispose();
 /* POST PROCESSING                       */
 /* ===================================== */
 
-const composer = new EffectComposer(renderer);
+const composer = new EffectComposer(
+  renderer,
+  new THREE.WebGLRenderTarget(vw() * renderScale, vh() * renderScale, {
+    type: THREE.HalfFloatType,
+    samples: LOW_POWER ? 0 : 4
+  })
+);
 composer.addPass(new RenderPass(scene, camera));
 
 const bloomPass = new UnrealBloomPass(new THREE.Vector2(vw() / 2, vh() / 2), 0.5, 0.55, 0.86);
@@ -434,7 +444,7 @@ function makeHaze({ z, width, height, scale, speed, intensity }) {
       float fbm(vec2 p) {
         float v = 0.0;
         float a = 0.5;
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < ${LOW_POWER ? 3 : 5}; i++) {
           v += a * noise(p);
           p *= 2.03;
           a *= 0.5;
@@ -460,7 +470,10 @@ function makeHaze({ z, width, height, scale, speed, intensity }) {
 }
 
 const hazeBack = makeHaze({ z: -4, width: 34, height: 20, scale: 3, speed: 1, intensity: 0.22 });
-const hazeFront = makeHaze({ z: -1.2, width: 20, height: 12, scale: 4.5, speed: 1.6, intensity: 0.08 });
+// The front layer is a luxury: skipped on phones and low-power machines.
+const hazeFront = LOW_POWER
+  ? { uniforms: { uTime: { value: 0 }, uIntensity: { value: 0 } } }
+  : makeHaze({ z: -1.2, width: 20, height: 12, scale: 4.5, speed: 1.6, intensity: 0.08 });
 
 /* ===================================== */
 /* PARTICLES (GPU points)                */
@@ -735,7 +748,7 @@ async function loadModel(loader, url, material, onProgress) {
   raw.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   if (mesh.geometry.index) raw.setIndex(mesh.geometry.index);
 
-  const geometry = toCreasedNormals(raw, THREE.MathUtils.degToRad(38));
+  const geometry = creasedNormals(raw, THREE.MathUtils.degToRad(40));
   geometry.computeBoundingBox();
 
   const box = geometry.boundingBox;
@@ -763,7 +776,10 @@ async function loadAssets() {
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
 
-  const batteryMaterial = new THREE.MeshPhysicalMaterial({
+  // Clearcoat is a second specular layer; phones get the cheaper standard model.
+  const Metal = LOW_POWER ? THREE.MeshStandardMaterial : THREE.MeshPhysicalMaterial;
+
+  const batteryMaterial = new Metal({
     color: 0x0d4a29,
     metalness: 0.92,
     roughness: 0.26,
@@ -772,7 +788,7 @@ async function loadAssets() {
     envMapIntensity: 1.1
   });
 
-  const ringMaterial = new THREE.MeshPhysicalMaterial({
+  const ringMaterial = new Metal({
     color: 0x146a3b,
     metalness: 0.94,
     roughness: 0.24,
@@ -901,9 +917,9 @@ function resizeRenderer() {
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
+  renderer.setPixelRatio(renderScale);
   renderer.setSize(w, h);
-  composer.setPixelRatio(Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO));
+  composer.setPixelRatio(renderScale);
   composer.setSize(w, h);
 
   particleMaterial.uniforms.uScale.value = pointScale();
@@ -975,9 +991,23 @@ function setStage(next) {
 
   const chapter = CHAPTERS[next];
   if (chapter) {
+    const fresh = chapterNum.textContent !== chapter[0];
     chapterNum.textContent = chapter[0];
     chapterName.textContent = chapter[1];
+    if (fresh && next !== Stage.WELCOME) chapterCard(chapter[0], chapter[1]);
   }
+}
+
+// A film chapter card: small number, wide title, gone in a few seconds.
+function chapterCard(number, name) {
+  if (!entered) return;
+
+  const el = document.createElement("div");
+  el.className = "chapter-card";
+  el.innerHTML = `<span class="chapter-card-num">Chapter ${number}</span><span class="chapter-card-name"></span>`;
+  el.querySelector(".chapter-card-name").textContent = name;
+  cuesEl.appendChild(el);
+  window.setTimeout(() => el.remove(), 3400);
 }
 
 // Shown in the bottom letterbox, like scene markers.
@@ -1379,7 +1409,11 @@ function updateCharge(dt) {
 
   // With the oath recording loaded, holding the ring plays it and letting go
   // pauses it; the charge and the words follow the recording.
-  if (audio.hasTrack() && stage === Stage.DOCKED) {
+  // Your own line-by-line recordings (vo_oath_1..4) take over from the full
+  // track as soon as they exist.
+  const useTrack = audio.hasTrack() && !audio.hasClip("vo_oath_1");
+
+  if (useTrack && stage === Stage.DOCKED) {
     if (charging) audio.trackPlay();
     else audio.trackPause();
 
@@ -2257,6 +2291,7 @@ function announce(text) {
 const cameraLook = new THREE.Vector3();
 let dockView = 0;
 let openingPush = 1;
+let squeeze = 0;
 let endingPull = 0;
 let entered = false;
 
@@ -2274,6 +2309,16 @@ function updateCamera(time, dt) {
   // The opening shot: a slow push in from far back as the picture fades up.
   openingPush = damp(openingPush, stage === Stage.INTRO || stage === Stage.LOADING ? 1 : 0, 0.55, dt);
   lensPass.uniforms.uFade.value = damp(lensPass.uniforms.uFade.value, entered ? 1 : 0, 0.9, dt);
+
+  // The key light fades up as the camera pushes in: the lantern emerges from
+  // the dark, lit first only by its green rim.
+  keyLight.intensity = 1.3 * (1 - openingPush * 0.95);
+  fillLight.intensity = 0.45 * (1 - openingPush * 0.8);
+
+  // The letterbox tightens as the charge builds and snaps open at the finale.
+  const squeezeTarget = stage === Stage.DOCKED && isCharging() ? charge * 0.07 : 0;
+  squeeze = damp(squeeze, squeezeTarget, stage === Stage.FINALE ? 6 : 1.2, dt);
+  loaderEl.style.setProperty("--squeeze", `${(squeeze * vh()).toFixed(1)}px`);
 
   // Slow dolly toward the lens as the charge builds, a big push at the finale.
   const level = powered ? charge : 0;
@@ -2307,6 +2352,37 @@ function updateCamera(time, dt) {
 }
 
 /* ===================================== */
+/* ADAPTIVE QUALITY                      */
+/* ===================================== */
+
+// Watch the frame time and nudge the render resolution to hold ~55-60 fps:
+// down quickly when frames drag, back up slowly when there is headroom.
+let frameAverage = 1 / 60;
+let qualityTimer = 0;
+
+function updateQuality(dt) {
+  // Loading and the title card cause one-off hitches; only judge real play.
+  if (!entered || document.hidden || dt <= 0 || dt >= 0.1) return;
+
+  frameAverage += (dt - frameAverage) * 0.05;
+  qualityTimer += dt;
+  if (qualityTimer < 1.5) return;
+  qualityTimer = 0;
+
+  let next = renderScale;
+  if (frameAverage > 1 / 45) next = Math.max(MIN_PIXEL_RATIO, renderScale - 0.15);
+  else if (frameAverage < 1 / 57) next = Math.min(MAX_PIXEL_RATIO, renderScale + 0.05);
+
+  if (Math.abs(next - renderScale) > 0.01) {
+    renderScale = next;
+    renderer.setPixelRatio(renderScale);
+    composer.setPixelRatio(renderScale);
+    composer.setSize(vw(), vh());
+    particleMaterial.uniforms.uScale.value = pointScale();
+  }
+}
+
+/* ===================================== */
 /* LOOP                                  */
 /* ===================================== */
 
@@ -2321,6 +2397,8 @@ function animate(now) {
   stageTime += dt;
 
   if (!ready) return;
+
+  updateQuality(dt);
 
   // At the ending the lantern rises to glow behind the title, leaving the
   // middle of the frame open for constructs.
@@ -2431,6 +2509,9 @@ if (new URLSearchParams(window.location.search).has("debug")) {
         trackTime: audio.trackTime(),
         charging: isCharging()
       };
+    },
+    get quality() {
+      return { renderScale, fps: Math.round(1 / frameAverage), lowPower: LOW_POWER };
     },
     skip: () => skipIntro(),
     dock: () => {

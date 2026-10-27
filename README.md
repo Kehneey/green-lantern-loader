@@ -38,21 +38,23 @@ If you hesitate, a ghost glove demonstrates the next move. Drop the ring and it 
 - `audio.js`: plays the recordings in `assets/audio/`, with synthesised stand-ins for anything missing
 - `AUDIO_PROMPTS.md`: exact prompts and file names for generating the voice-over (and optional sound effects)
 - `hand.js`: the glove cursor and the ghost demonstration glove
-- `assets/green_lantern.glb`, `assets/green-lantern-ring.glb`: the comic battery and ring, meshopt-compressed (about 3 MB together, down from 19 MB)
+- `assets/green_lantern.glb`, `assets/green-lantern-ring.glb`: the comic battery and ring, simplified to about 130k and 48k triangles and meshopt-compressed (0.6 MB together, down from 19 MB)
+- `geometry.js`: area-weighted crease normals, so the simplified models shade cleanly
+- `tools/pack_audio.py`, `tools/serve.py`: audio packer and local dev server
 
 ## Run locally
 
 The page loads ES modules and 3D models, so serve the folder rather than opening `index.html` directly:
 
 ```bash
-python -m http.server 8123
+python tools/serve.py
 ```
 
-then open http://localhost:8123. VS Code's Live Server works too.
+then open http://127.0.0.1:8123. It is a plain static server that tells the browser never to cache, so edits always show up on reload (Python's own `http.server` lets the browser keep stale copies of the modules).
 
 ## Sound and voice
 
-**Adding audio.** Drop files into `assets/audio/` and run `python tools/pack_audio.py` (the GitHub Pages workflow also runs it on every deploy). It wraps each file as JSON in `assets/audio/packed/` and lists them in `assets/audio/manifest.json`; the page loads those, so download managers such as IDM never intercept the audio.
+**Adding audio.** Drop files into `assets/audio/` and run `python tools/pack_audio.py` (the GitHub Pages workflow also runs it on every deploy). It trims silence from WAV files, splits a single `vo_dialog.wav` export into the seven voice lines, wraps each file as JSON in `assets/audio/packed/` and lists them in `assets/audio/manifest.json`. The page loads those, so download managers such as IDM never intercept the audio. See `AUDIO_PROMPTS.md` for making the voices free in Google AI Studio.
 
 **The oath recording.** Put a full spoken oath at `assets/audio/oath_track.mp3`. Holding the ring on the lantern plays it, letting go pauses it, and the charge and the words on screen follow the recording. Word timing is set in `TRACK_CUES` at the top of `oath.js` (measured for the current take).
 
@@ -61,6 +63,10 @@ Without the track, the oath lines use `vo_oath_1`…`vo_oath_4` (or the browser'
 Clicking **Enter** unlocks sound in every browser, including iOS.
 
 `prefers-reduced-motion` is respected: no camera sway, shake, grain or hard flash.
+
+## Performance
+
+The page watches its own frame rate and lowers or raises the render resolution to stay smooth. Phones and low-core machines also get cheaper metal shading, a single haze layer and fewer particles. `?debug` then `__lantern.quality` in the console shows the current render scale and fps.
 
 ## Tuning
 

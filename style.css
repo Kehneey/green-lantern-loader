@@ -79,11 +79,10 @@ button { font: inherit; color: inherit; }
   z-index: 40;
   pointer-events: none;
   background: #000;
-  transition: height 1.6s cubic-bezier(.7,0,.2,1);
 }
 
-.loader::before { top: 0; height: calc(var(--bar) + var(--safe-t)); }
-.loader::after { bottom: 0; height: calc(var(--bar) + var(--safe-b)); }
+.loader::before { top: 0; height: calc(var(--bar) + var(--squeeze, 0px) + var(--safe-t)); }
+.loader::after { bottom: 0; height: calc(var(--bar) + var(--squeeze, 0px) + var(--safe-b)); }
 
 .three-stage {
   position: absolute;
@@ -464,6 +463,47 @@ button { font: inherit; color: inherit; }
   0% { opacity: 0; filter: blur(10px); }
   20% { opacity: 1; filter: blur(0); }
   80% { opacity: 1; filter: blur(0); }
+  100% { opacity: 0; filter: blur(8px); }
+}
+
+/* Chapter card: centred in the upper picture, fades through quickly. */
+.chapter-card {
+  position: absolute;
+  left: 50%;
+  top: calc(var(--bar) + var(--safe-t) + 8vh);
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: chapterLife 3.2s ease forwards;
+}
+
+.chapter-card-num {
+  color: rgba(150,255,190,.75);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: .6em;
+  padding-left: .6em;
+  text-transform: uppercase;
+}
+
+.chapter-card-name {
+  color: #f4fbf6;
+  font-family: var(--title);
+  font-size: clamp(16px, min(2.6vw, 4.4vh), 34px);
+  font-weight: 700;
+  letter-spacing: .32em;
+  padding-left: .32em;
+  text-transform: uppercase;
+  text-shadow: 0 0 24px rgba(56,255,127,.35);
+}
+
+@keyframes chapterLife {
+  0% { opacity: 0; filter: blur(10px); letter-spacing: .1em; }
+  22% { opacity: 1; filter: blur(0); }
+  72% { opacity: 1; filter: blur(0); }
   100% { opacity: 0; filter: blur(8px); }
 }
 
@@ -1001,6 +1041,15 @@ button { font: inherit; color: inherit; }
   .reveal h1 { margin: 6px 0; }
   .title-accent { font-size: clamp(36px, 14vh, 80px); }
 }
+
+/* Touch devices: big blurred text is expensive to repaint, so words resolve
+   with opacity and movement only. */
+@media (hover: none) {
+  .oath-word { filter: none; }
+  .oath-word.is-on { filter: none; }
+}
+
+.intro.is-gone::after { animation: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .oath-word { filter: none; transform: none; transition: opacity .6s ease; }

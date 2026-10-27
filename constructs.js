@@ -110,19 +110,29 @@ const easeOutBack = t => 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2)
 const easeIn = t => t * t;
 
 export function createConstructs({ container, audio, reducedMotion = false, lowPower = false, onStatus = () => {} }) {
-  let renderer;
+  // The construct layer is a second WebGL canvas. It is only created when the
+  // first construct is built, so it costs nothing until the ending.
+  let renderer = null;
+  let failed = false;
 
-  try {
-    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-  } catch (error) {
-    return { spawn() {}, spawnCenter() {}, update() {}, resize() {}, clear() {} };
+  function ensureRenderer() {
+    if (renderer || failed) return Boolean(renderer);
+
+    try {
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: !lowPower });
+    } catch (error) {
+      failed = true;
+      return false;
+    }
+
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1.25 : 2));
+    renderer.setClearColor(0x000000, 0);
+    renderer.domElement.className = "construct-layer";
+    renderer.domElement.setAttribute("aria-hidden", "true");
+    container.appendChild(renderer.domElement);
+    resize();
+    return true;
   }
-
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, lowPower ? 1.5 : 2));
-  renderer.setClearColor(0x000000, 0);
-  renderer.domElement.className = "construct-layer";
-  renderer.domElement.setAttribute("aria-hidden", "true");
-  container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
   const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 4000);
@@ -136,6 +146,8 @@ export function createConstructs({ container, audio, reducedMotion = false, lowP
     // Constructs are short-lived and placed in pixels; drop them on resize.
     if (live.length) clear();
 
+    if (!renderer) return;
+
     const w = Math.max(1, window.innerWidth);
     const h = Math.max(1, window.innerHeight);
     renderer.setSize(w, h);
@@ -145,8 +157,6 @@ export function createConstructs({ container, audio, reducedMotion = false, lowP
     camera.bottom = -h / 2;
     camera.updateProjectionMatrix();
   }
-
-  resize();
 
   function makePart(spec, index, count) {
     const faceMaterial = new THREE.MeshBasicMaterial({
@@ -261,6 +271,8 @@ export function createConstructs({ container, audio, reducedMotion = false, lowP
 
   // `maxSize` (px) caps the construct so it fits a given space.
   function spawn(x, y, labelLayer, maxSize = Infinity) {
+    if (!ensureRenderer()) return;
+
     // Keep at most two on screen: the oldest breaks up early.
     const building = live.filter(c => c.phase !== "dissolve");
     if (building.length >= 2) {
@@ -359,6 +371,8 @@ export function createConstructs({ container, audio, reducedMotion = false, lowP
   }
 
   function update(dt) {
+    if (!renderer) return;
+
     if (!live.length) {
       if (needsClear) {
         renderer.render(scene, camera);

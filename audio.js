@@ -600,6 +600,7 @@ export function createAudio() {
     voiceClip,
     stopVoiceClip,
     hasTrack,
+    hasClip: name => ready && has(name),
     trackTime,
     trackPlay,
     trackPause,

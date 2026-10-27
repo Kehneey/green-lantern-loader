@@ -1,43 +1,48 @@
 # Audio pack: prompts and file spec
 
-Put the files in `assets/audio/` with exactly these names (`.mp3` or `.wav`). Anything missing falls back to a quiet built-in stand-in, so you can add files one at a time.
+Put the files in `assets/audio/` with exactly these names (`.wav` or `.mp3`), then push (or run `python tools/pack_audio.py` to try them locally). Anything missing falls back to a built-in stand-in, so files can be added one at a time.
 
-**Format:** WAV 48 kHz or MP3 at 192 kbps or higher.
+The packer trims silence from WAV files automatically, so exports from Google AI Studio can go in as they are.
 
-- **Voice:** trim all silence at the start and end (word timing on screen is derived from the file length) and normalise to about −16 LUFS.
-- **Sound effects:** peak at −1 dB.
-- **Loops:** must loop seamlessly.
+## Voice-over with Google AI Studio (free: Create new dialog)
 
-## Voice-over
+Open **aistudio.google.com → Playground → Generate speech** with **Gemini 3.8 Flash TTS**, then **Create new dialog**. Voice design needs a paid plan, but the 2,000+ built-in voices are free.
 
-### Oath voice (one voice for all four lines)
+### 1. Pick the two voices (Speaker settings, right-hand panel)
 
-Voice design prompt (no character or brand names, so generators don't block it):
+Click each speaker card, search the voice library, press play to audition, and pick:
 
-> A deep, warm male baritone, late thirties, American. Calm and determined, like a test pilot taking a solemn vow before a mission. Sincere and natural, not theatrical. Clean studio recording, close microphone, no background sound, no music.
+| Speaker | Role | Try first | Alternatives |
+|---|---|---|---|
+| Speaker 1 | **Lantern** (the oath) | **Neno** (deep and velvety) | Arlo (confident and clear), Jett (warm, deep), Cruz (poised) |
+| Speaker 2 | **Ring** (the ring's AI) | **Kira** (cool and confident) | Hali (calm and comforting), Elio (calm), Olin (light and precise) |
 
-Settings: Stability ~50, Similarity ~75, Style ~35, Speed 0.9.
+### 2. One speech block per line, in this order
 
-| File | Line | Direction |
-|---|---|---|
-| `vo_oath_1` | In brightest day, in blackest night, | Quiet, measured; small pause after "day" |
-| `vo_oath_2` | No evil shall escape my sight. | Firmer, steady |
-| `vo_oath_3` | Let those who worship evil's might, | Lower, darker; slow "might" |
-| `vo_oath_4` | Beware my power... Green Lantern's light! | Builds; held pause after "power"; last words strong, not shouted |
+Use **+ Add speech block** for each line. Set the block's speaker, type the **Style** note into the Style box (it takes free text), and paste the line.
 
-### Ring voice (AI status voice)
+| # | Speaker | Style (free text) | Line |
+|---|---|---|---|
+| 1 | Ring | Calm status report, a little concern underneath, short pause between the sentences | Ring power at two percent. Recharge required. |
+| 2 | Lantern | Slow and quiet, deep resolve, a breath after "day" | In brightest day... in blackest night, |
+| 3 | Lantern | Firmer, steady and certain, a vow | No evil shall escape my sight. |
+| 4 | Lantern | Lower and darker, almost a warning, draw out the last word | Let those who worship evil's might, |
+| 5 | Lantern | Build from quiet intensity to full power; hold a beat after "power"; land the last words strong, not shouted | Beware my power... Green Lantern's light! |
+| 6 | Ring | Clear and assured, a hint of quiet pride | Ring fully charged. |
+| 7 | Ring | Warm, ceremonial and unhurried; small pause before "Earth's guardian" | Welcome, Green Lantern of Sector twenty-eight fourteen. Earth's guardian. |
 
-> A calm, precise artificial assistant voice. Mid-pitched, neutral, emotionless, crisp diction with a slightly synthetic edge, speaking short status reports. Clean studio recording, no background sound.
+The **Narration** style preset ("commanding, rich vocal modulation, dramatic pauses") is a good base for the oath lines if you prefer presets. Avoid expression tags such as `<laugh>`: they don't suit these lines.
 
-Settings: Stability ~80, Style 0, Speed 0.95.
+### 3. Export
 
-| File | Line |
-|---|---|
-| `vo_ring_low` | Ring power at two percent. Recharge required. |
-| `vo_ring_full` | Ring fully charged. |
-| `vo_welcome` | Welcome, Green Lantern of Sector two-eight-one-four. Earth's guardian. |
+**Run**, listen, re-run any line you don't like, then download.
 
-If a line is blocked, generate it on its own. If it still fails, use "Beware my power... the emerald light!" or "Welcome, Lantern of Sector two-eight-one-four. Earth's guardian." and update the matching text in `oath.js` / `script.js`.
+- **One file for the whole dialog:** save it as `assets/audio/vo_dialog.wav`. The packer splits it into the seven lines at the pauses between speakers, so leave a clear gap between blocks.
+- **Or one file per line:** generate each block on its own and save it with its name: `vo_ring_low`, `vo_oath_1`, `vo_oath_2`, `vo_oath_3`, `vo_oath_4`, `vo_ring_full`, `vo_welcome` (`.wav`). A separate file always wins over the split dialog.
+
+Once `vo_oath_1` exists, your new oath lines replace the old full oath track.
+
+If a line is refused, use "Beware my power... the emerald light!" or "Welcome, Lantern of Sector twenty-eight fourteen. Earth's guardian." and update the matching text in `oath.js` / `script.js`.
 
 ## Sound effects (optional)
 
